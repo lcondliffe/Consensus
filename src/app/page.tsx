@@ -30,6 +30,7 @@ export default function Home() {
   );
   const [showSettings, setShowSettings] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [maximizedModelId, setMaximizedModelId] = useState<string | null>(null);
 
   // Session state
   const [prompt, setPrompt] = useState('');
@@ -344,61 +345,83 @@ export default function Home() {
           {/* Responses Grid */}
           {hasResponses && (
             <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-              {/* View toggle */}
-              <div className="flex items-center justify-end gap-1">
-                <span className="text-xs text-gray-500 mr-2">View:</span>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={clsx(
-                    'p-1.5 rounded transition-colors',
-                    viewMode === 'grid'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                  )}
-                  title="Grid view"
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('stacked')}
-                  className={clsx(
-                    'p-1.5 rounded transition-colors',
-                    viewMode === 'stacked'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                  )}
-                  title="Stacked view"
-                >
-                  <Rows3 className="w-4 h-4" />
-                </button>
-              </div>
+              {/* View toggle - hide when maximized */}
+              {!maximizedModelId && (
+                <div className="flex items-center justify-end gap-1">
+                  <span className="text-xs text-gray-500 mr-2">View:</span>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={clsx(
+                      'p-1.5 rounded transition-colors',
+                      viewMode === 'grid'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-gray-200'
+                    )}
+                    title="Grid view"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('stacked')}
+                    className={clsx(
+                      'p-1.5 rounded transition-colors',
+                      viewMode === 'stacked'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-gray-200'
+                    )}
+                    title="Stacked view"
+                  >
+                    <Rows3 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
-              {/* Response panels */}
-              <div
-                className={clsx(
-                  'flex-1 gap-4 overflow-y-auto',
-                  viewMode === 'grid' && [
-                    'grid',
-                    responsesArray.length <= 2 && 'grid-cols-2',
-                    responsesArray.length === 3 && 'grid-cols-3',
-                    responsesArray.length >= 4 && 'grid-cols-2 lg:grid-cols-4',
-                  ],
-                  viewMode === 'stacked' && 'flex flex-col'
-                )}
-              >
-                {responsesArray.map((response) => (
-                  <ResponsePanel
-                    key={response.modelId}
-                    response={response}
-                    isWinner={verdict?.winnerModelId === response.modelId}
-                    score={getScore(response.modelId)}
-                    viewMode={viewMode}
-                  />
-                ))}
-              </div>
+              {/* Response panels - show only maximized panel or all panels */}
+              {maximizedModelId ? (
+                // Maximized view - single panel
+                <div className="flex-1 overflow-hidden">
+                  {responses.get(maximizedModelId) && (
+                    <ResponsePanel
+                      response={responses.get(maximizedModelId)!}
+                      isWinner={verdict?.winnerModelId === maximizedModelId}
+                      score={getScore(maximizedModelId)}
+                      viewMode={viewMode}
+                      isMaximized={true}
+                      onMinimize={() => setMaximizedModelId(null)}
+                    />
+                  )}
+                </div>
+              ) : (
+                // Normal view - grid or stacked
+                <div
+                  className={clsx(
+                    'flex-1 gap-4 overflow-y-auto',
+                    viewMode === 'grid' && [
+                      'grid',
+                      responsesArray.length <= 2 && 'grid-cols-2',
+                      responsesArray.length === 3 && 'grid-cols-3',
+                      responsesArray.length >= 4 && 'grid-cols-2 lg:grid-cols-4',
+                    ],
+                    viewMode === 'stacked' && 'flex flex-col'
+                  )}
+                >
+                  {responsesArray.map((response) => (
+                    <ResponsePanel
+                      key={response.modelId}
+                      response={response}
+                      isWinner={verdict?.winnerModelId === response.modelId}
+                      score={getScore(response.modelId)}
+                      viewMode={viewMode}
+                      onMaximize={() => setMaximizedModelId(response.modelId)}
+                    />
+                  ))}
+                </div>
+              )}
 
-              {/* Verdict Panel */}
-              <VerdictPanel verdict={verdict} judgeModelName={judgeModelName} />
+              {/* Verdict Panel - hide when maximized */}
+              {!maximizedModelId && (
+                <VerdictPanel verdict={verdict} judgeModelName={judgeModelName} />
+              )}
             </div>
           )}
 

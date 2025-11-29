@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { ModelResponse } from '@/lib/types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import clsx from 'clsx';
@@ -12,13 +12,19 @@ interface ResponsePanelProps {
   isWinner?: boolean;
   score?: number;
   viewMode?: ViewMode;
+  isMaximized?: boolean;
+  onMaximize?: () => void;
+  onMinimize?: () => void;
 }
 
 export function ResponsePanel({ 
   response, 
   isWinner, 
   score,
-  viewMode = 'grid'
+  viewMode = 'grid',
+  isMaximized = false,
+  onMaximize,
+  onMinimize,
 }: ResponsePanelProps) {
   const { modelName, content, isStreaming, isComplete, error, latencyMs } = response;
 
@@ -26,8 +32,11 @@ export function ResponsePanel({
     <div
       className={clsx(
         'flex flex-col rounded-xl border overflow-hidden transition-all',
+        // Maximized mode takes full height
+        isMaximized && 'h-full',
         // In grid mode, use fixed height; in stacked mode, use min-height
-        viewMode === 'grid' ? 'h-[400px]' : 'min-h-[200px] max-h-[600px]',
+        !isMaximized && viewMode === 'grid' && 'h-[400px]',
+        !isMaximized && viewMode === 'stacked' && 'min-h-[200px] max-h-[600px]',
         isWinner ? 'winner-card border-green-500/50 ring-1 ring-green-500/30' : 'border-gray-700',
         error && 'border-red-500/50'
       )}
@@ -59,6 +68,28 @@ export function ResponsePanel({
           )}
           {isComplete && latencyMs && (
             <span>{(latencyMs / 1000).toFixed(1)}s</span>
+          )}
+          {/* Maximize/Minimize button */}
+          {isMaximized ? (
+            onMinimize && (
+              <button
+                onClick={onMinimize}
+                className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
+                title="Minimize"
+              >
+                <Minimize2 className="w-4 h-4" />
+              </button>
+            )
+          ) : (
+            onMaximize && (
+              <button
+                onClick={onMaximize}
+                className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
+                title="Maximize"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+            )
           )}
         </div>
       </div>
