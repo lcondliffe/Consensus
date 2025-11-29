@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  JudgingCriteria,
+  getCriteriaById,
+  DEFAULT_CRITERIA_ID,
+  formatCriteriaForPrompt,
+} from '@/lib/criteria';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -10,6 +16,8 @@ interface JudgeRequest {
     content: string;
   }>;
   judgeModelId: string;
+  criteria?: JudgingCriteria; // Custom criteria object
+  criteriaId?: string; // Or preset ID
 }
 
 interface JudgeVerdict {
@@ -35,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: JudgeRequest = await request.json();
-    const { prompt, responses, judgeModelId } = body;
+    const { prompt, responses, judgeModelId, criteria, criteriaId } = body;
 
     if (!prompt || !responses || responses.length < 2 || !judgeModelId) {
       return NextResponse.json(
@@ -44,8 +52,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Resolve criteria: use provided criteria, lookup by ID, or use default
+    const resolvedCriteria =
+      criteria || getCriteriaById(criteriaId || DEFAULT_CRITERIA_ID) || getCriteriaById(DEFAULT_CRITERIA_ID)!;
+
     // Build the judge prompt
-    const judgePrompt = buildJudgePrompt(prompt, responses);
+    const judgePrompt = buildJudgePrompt(prompt, responses, resolvedCriteria);
 
     const response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
@@ -91,7 +103,8 @@ export async function POST(request: NextRequest) {
 
 function buildJudgePrompt(
   originalPrompt: string,
-  responses: JudgeRequest['responses']
+  responses: JudgeRequest['responses'],
+  criteria: JudgingCriteria
 ): string {
   const responsesText = responses
     .map(
@@ -102,6 +115,9 @@ ${r.content}
     )
     .join('\n---\n');
 
+  const criteriaText = formatCriteriaForPrompt(criteria);
+  const criteriaNames = criteria.criteria.map((c) => c.name).join(', ');
+
   return `You are an expert judge evaluating AI model responses. Your task is to analyze the following responses to a user prompt and determine which is best.
 
 ## Original User Prompt
@@ -110,30 +126,31 @@ ${originalPrompt}
 ## Responses to Evaluate
 ${responsesText}
 
+## Evaluation Criteria: ${criteria.name}
+${criteria.description}
+
+Evaluate each response based on these criteria (higher weight = more important):
+${criteriaText}
+
 ## Your Task
-Evaluate each response based on:
-1. Accuracy and correctness
-2. Completeness and thoroughness
-3. Clarity and presentation
-4. Relevance to the prompt
-5. Overall helpfulness
+Score each response on the criteria above, then determine the overall winner. Weight your evaluation according to the importance scores.
 
 Provide your evaluation as a JSON object with this exact structure:
 {
   "winnerModelId": "the model ID of the best response",
   "winnerModelName": "the display name of the winner",
-  "reasoning": "A 2-3 sentence explanation of why this response won, referencing specific strengths and comparing to other responses",
+  "reasoning": "A 2-3 sentence explanation of why this response won, specifically referencing how it performed on ${criteriaNames}",
   "scores": [
     {
       "modelId": "model ID",
       "score": 85,
-      "strengths": ["strength 1", "strength 2"],
-      "weaknesses": ["weakness 1"]
+      "strengths": ["strength 1 relating to criteria", "strength 2"],
+      "weaknesses": ["weakness 1 relating to criteria"]
     }
   ]
 }
 
-The score should be 0-100. Be specific in your reasoning - reference actual content from the responses.`;
+The score should be 0-100, weighted by the criteria importance. Be specific - reference actual content from the responses and how it relates to the evaluation criteria.`;
 }
 
 function parseJudgeResponse(

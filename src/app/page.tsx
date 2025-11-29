@@ -6,6 +6,7 @@ import { ModelSelector } from '@/components/ModelSelector';
 import { PromptInput } from '@/components/PromptInput';
 import { ResponsePanel } from '@/components/ResponsePanel';
 import { VerdictPanel } from '@/components/VerdictPanel';
+import { CriteriaSelector } from '@/components/CriteriaSelector';
 import { ModelResponse, Verdict, StreamChunk } from '@/lib/types';
 import {
   DEFAULT_COMMITTEE_MODEL_IDS,
@@ -13,6 +14,7 @@ import {
   getModelDisplayName,
   AVAILABLE_MODELS,
 } from '@/lib/models';
+import { JudgingCriteria, JUDGING_PRESETS, DEFAULT_CRITERIA_ID } from '@/lib/criteria';
 import clsx from 'clsx';
 
 const MIN_COMMITTEE_MODELS = 2;
@@ -23,6 +25,9 @@ export default function Home() {
     DEFAULT_COMMITTEE_MODEL_IDS.filter((id) => id !== DEFAULT_JUDGE_MODEL.id)
   );
   const [judgeModelId, setJudgeModelId] = useState(DEFAULT_JUDGE_MODEL.id);
+  const [judgingCriteria, setJudgingCriteria] = useState<JudgingCriteria>(
+    JUDGING_PRESETS.find((p) => p.id === DEFAULT_CRITERIA_ID)!
+  );
   const [showSettings, setShowSettings] = useState(false);
 
   // Session state
@@ -225,6 +230,7 @@ export default function Home() {
           prompt: prompt.trim(),
           responses: completedResponses,
           judgeModelId,
+          criteria: judgingCriteria,
         }),
       })
         .then(async (res) => {
@@ -258,7 +264,7 @@ export default function Home() {
 
       return currentResponses;
     });
-  }, [prompt, judgeModelId]);
+  }, [prompt, judgeModelId, judgingCriteria]);
 
   // Get score for a model from verdict
   const getScore = (modelId: string): number | undefined => {
@@ -301,14 +307,21 @@ export default function Home() {
             showSettings ? 'w-80 p-4' : 'w-0 p-0'
           )}
         >
-          {showSettings && (
-            <ModelSelector
-              selectedCommittee={selectedCommittee}
-              judgeModelId={judgeModelId}
-              onCommitteeChange={setSelectedCommittee}
-              onJudgeChange={handleJudgeChange}
-              disabled={isSubmitting}
-            />
+        {showSettings && (
+            <div className="space-y-6">
+              <ModelSelector
+                selectedCommittee={selectedCommittee}
+                judgeModelId={judgeModelId}
+                onCommitteeChange={setSelectedCommittee}
+                onJudgeChange={handleJudgeChange}
+                disabled={isSubmitting}
+              />
+              <CriteriaSelector
+                selectedCriteria={judgingCriteria}
+                onCriteriaChange={setJudgingCriteria}
+                disabled={isSubmitting}
+              />
+            </div>
           )}
         </aside>
 

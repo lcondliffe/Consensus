@@ -61,6 +61,9 @@ LLM Committee is a web application that sends user prompts to multiple AI models
 | FR-009 | System MUST prevent the judge model from being selected as a committee member |
 | FR-010 | System MUST validate that at least 2 committee models are selected |
 | FR-011 | System MUST handle individual model failures gracefully without blocking other responses |
+| FR-015 | System MUST allow selection of judging criteria presets |
+| FR-016 | System MUST allow definition of custom judging criteria |
+| FR-017 | System MUST include criteria in the judge evaluation prompt |
 | FR-012 | System MUST securely handle the OpenRouter API key (not exposed in frontend) |
 | FR-013 | System MUST provide loading/streaming states during model inference |
 | FR-014 | System MUST run in a Docker container for deployment |
@@ -79,6 +82,76 @@ LLM Committee is a web application that sends user prompts to multiple AI models
 |----|---------------|
 | DC-001 | Default committee models: Claude Sonnet 4, GPT-4o, Gemini 2.0 Flash |
 | DC-002 | Default judge model: Claude Sonnet 4 (excluded from committee when acting as judge) |
+| DC-003 | Default judging criteria: General Purpose |
+
+## Judging Criteria
+
+The judge evaluates responses based on configurable criteria. Users can select from built-in presets or define custom criteria.
+
+### Built-in Presets
+
+**General Purpose** (default)
+Balanced evaluation for most prompts.
+- Accuracy (weight: 5) — Correctness and factual accuracy
+- Completeness (weight: 4) — Thoroughness in addressing all aspects
+- Clarity (weight: 4) — Clear, well-organized, easy to understand
+- Relevance (weight: 5) — Directly addresses the prompt
+- Helpfulness (weight: 4) — Practical and actionable
+
+**Code Quality**
+Evaluates programming and technical responses.
+- Correctness (weight: 5) — Code works correctly, handles edge cases
+- Best Practices (weight: 4) — Follows language idioms and standards
+- Readability (weight: 4) — Clean, well-structured, properly named
+- Efficiency (weight: 3) — Appropriate time/space complexity
+- Explanation (weight: 4) — Clear explanation of approach
+- Error Handling (weight: 3) — Handles errors appropriately
+
+**Creative Writing**
+Evaluates stories, poetry, and creative content.
+- Creativity (weight: 5) — Original ideas, unique perspectives
+- Engagement (weight: 5) — Captivating, emotionally resonant
+- Style (weight: 4) — Distinctive voice, appropriate tone
+- Structure (weight: 3) — Well-paced, coherent flow
+- Language (weight: 4) — Rich vocabulary, vivid imagery
+
+**Factual Accuracy**
+Prioritizes correctness for research queries.
+- Accuracy (weight: 5) — Factually correct, verifiable
+- Sources (weight: 4) — References authoritative sources
+- Nuance (weight: 4) — Acknowledges complexity
+- Objectivity (weight: 4) — Balanced perspectives
+- Completeness (weight: 3) — Covers key aspects
+
+**Concise & Direct**
+Rewards brevity and directness.
+- Brevity (weight: 5) — Gets to the point quickly
+- Directness (weight: 5) — Answers immediately and clearly
+- Accuracy (weight: 4) — Correct despite being brief
+- Completeness (weight: 3) — Covers essentials
+
+**Educational**
+Evaluates explanations and teaching quality.
+- Clarity (weight: 5) — Easy to understand for audience
+- Accuracy (weight: 5) — Factually correct
+- Examples (weight: 4) — Helpful examples and analogies
+- Structure (weight: 4) — Logical progression
+- Depth (weight: 3) — Appropriate level of detail
+
+**Persuasive**
+Evaluates arguments and persuasive writing.
+- Argument Strength (weight: 5) — Logical, well-reasoned
+- Evidence (weight: 4) — Supports claims with evidence
+- Rhetoric (weight: 4) — Effective persuasive techniques
+- Counterarguments (weight: 3) — Addresses objections
+- Conclusion (weight: 4) — Strong, memorable conclusion
+
+### Custom Criteria
+
+Users can define custom evaluation criteria with:
+- **Name**: Label for the criterion
+- **Description**: What the judge should evaluate
+- **Weight** (1-5): Relative importance in scoring
 
 ## Key Entities
 
@@ -93,6 +166,13 @@ An LLM model selected to generate a response.
 
 ### JudgeModel
 The LLM model responsible for evaluating responses and selecting a winner. MUST NOT be in committee.
+
+### JudgingCriteria
+The evaluation framework used by the judge.
+- `id`: Preset identifier or "custom"
+- `name`: Display name (e.g., "Code Quality")
+- `description`: What this criteria set evaluates
+- `criteria`: List of individual criteria with name, weight (1-5), and description
 
 ### Response
 A single model's output for a given prompt.
