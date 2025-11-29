@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { Settings, X } from 'lucide-react';
+import { Settings, X, LayoutGrid, Rows3 } from 'lucide-react';
 import { ModelSelector } from '@/components/ModelSelector';
 import { PromptInput } from '@/components/PromptInput';
-import { ResponsePanel } from '@/components/ResponsePanel';
+import { ResponsePanel, ViewMode } from '@/components/ResponsePanel';
 import { VerdictPanel } from '@/components/VerdictPanel';
 import { CriteriaSelector } from '@/components/CriteriaSelector';
 import { ModelResponse, Verdict, StreamChunk } from '@/lib/types';
@@ -29,6 +29,7 @@ export default function Home() {
     JUDGING_PRESETS.find((p) => p.id === DEFAULT_CRITERIA_ID)!
   );
   const [showSettings, setShowSettings] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   // Session state
   const [prompt, setPrompt] = useState('');
@@ -343,15 +344,47 @@ export default function Home() {
           {/* Responses Grid */}
           {hasResponses && (
             <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+              {/* View toggle */}
+              <div className="flex items-center justify-end gap-1">
+                <span className="text-xs text-gray-500 mr-2">View:</span>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={clsx(
+                    'p-1.5 rounded transition-colors',
+                    viewMode === 'grid'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:text-gray-200'
+                  )}
+                  title="Grid view"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('stacked')}
+                  className={clsx(
+                    'p-1.5 rounded transition-colors',
+                    viewMode === 'stacked'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:text-gray-200'
+                  )}
+                  title="Stacked view"
+                >
+                  <Rows3 className="w-4 h-4" />
+                </button>
+              </div>
+
               {/* Response panels */}
               <div
                 className={clsx(
-                  'flex-1 grid gap-4 overflow-hidden',
-                  responsesArray.length <= 2 && 'grid-cols-2',
-                  responsesArray.length === 3 && 'grid-cols-3',
-                  responsesArray.length >= 4 && 'grid-cols-2 lg:grid-cols-4'
+                  'flex-1 gap-4 overflow-y-auto',
+                  viewMode === 'grid' && [
+                    'grid',
+                    responsesArray.length <= 2 && 'grid-cols-2',
+                    responsesArray.length === 3 && 'grid-cols-3',
+                    responsesArray.length >= 4 && 'grid-cols-2 lg:grid-cols-4',
+                  ],
+                  viewMode === 'stacked' && 'flex flex-col'
                 )}
-                style={{ minHeight: '300px' }}
               >
                 {responsesArray.map((response) => (
                   <ResponsePanel
@@ -359,6 +392,7 @@ export default function Home() {
                     response={response}
                     isWinner={verdict?.winnerModelId === response.modelId}
                     score={getScore(response.modelId)}
+                    viewMode={viewMode}
                   />
                 ))}
               </div>

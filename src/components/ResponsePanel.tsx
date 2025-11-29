@@ -2,21 +2,32 @@
 
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { ModelResponse } from '@/lib/types';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import clsx from 'clsx';
+
+export type ViewMode = 'grid' | 'stacked';
 
 interface ResponsePanelProps {
   response: ModelResponse;
   isWinner?: boolean;
   score?: number;
+  viewMode?: ViewMode;
 }
 
-export function ResponsePanel({ response, isWinner, score }: ResponsePanelProps) {
+export function ResponsePanel({ 
+  response, 
+  isWinner, 
+  score,
+  viewMode = 'grid'
+}: ResponsePanelProps) {
   const { modelName, content, isStreaming, isComplete, error, latencyMs } = response;
 
   return (
     <div
       className={clsx(
-        'flex flex-col h-full rounded-xl border overflow-hidden transition-all',
+        'flex flex-col rounded-xl border overflow-hidden transition-all',
+        // In grid mode, use fixed height; in stacked mode, use min-height
+        viewMode === 'grid' ? 'h-[400px]' : 'min-h-[200px] max-h-[600px]',
         isWinner ? 'winner-card border-green-500/50 ring-1 ring-green-500/30' : 'border-gray-700',
         error && 'border-red-500/50'
       )}
@@ -24,20 +35,20 @@ export function ResponsePanel({ response, isWinner, score }: ResponsePanelProps)
       {/* Header */}
       <div
         className={clsx(
-          'flex items-center justify-between px-4 py-3 border-b',
+          'flex items-center justify-between px-4 py-3 border-b flex-shrink-0',
           isWinner ? 'bg-green-900/20 border-green-800/30' : 'bg-gray-800/50 border-gray-700'
         )}
       >
-        <div className="flex items-center gap-2">
-          <h3 className="font-medium text-gray-100">{modelName}</h3>
+        <div className="flex items-center gap-2 min-w-0">
+          <h3 className="font-medium text-gray-100 truncate">{modelName}</h3>
           {isWinner && (
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-medium flex-shrink-0">
               <CheckCircle2 className="w-3 h-3" />
               Winner
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 text-sm text-gray-500 flex-shrink-0">
           {score !== undefined && (
             <span className="px-2 py-0.5 rounded bg-gray-700 text-gray-300">
               {score}/100
@@ -53,7 +64,7 @@ export function ResponsePanel({ response, isWinner, score }: ResponsePanelProps)
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 overflow-auto bg-gray-900/30">
+      <div className="flex-1 p-4 overflow-y-auto bg-gray-900/30 text-sm text-gray-300">
         {error ? (
           <div className="flex items-start gap-2 text-red-400">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -63,18 +74,7 @@ export function ResponsePanel({ response, isWinner, score }: ResponsePanelProps)
             </div>
           </div>
         ) : content ? (
-          <div
-            className={clsx(
-              'prose prose-invert prose-sm max-w-none',
-              'prose-p:text-gray-300 prose-headings:text-gray-200',
-              'prose-code:text-blue-300 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded',
-              isStreaming && 'streaming-cursor'
-            )}
-          >
-            <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-300">
-              {content}
-            </pre>
-          </div>
+          <MarkdownRenderer content={content} isStreaming={isStreaming} />
         ) : isStreaming ? (
           <div className="flex items-center gap-2 text-gray-500">
             <Loader2 className="w-4 h-4 animate-spin" />
