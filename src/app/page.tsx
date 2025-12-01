@@ -7,7 +7,8 @@ import { PromptInput } from '@/components/PromptInput';
 import { ResponsePanel, ViewMode } from '@/components/ResponsePanel';
 import { VerdictPanel } from '@/components/VerdictPanel';
 import { CriteriaSelector } from '@/components/CriteriaSelector';
-import { ModelResponse, Verdict, StreamChunk } from '@/lib/types';
+import { JudgingModeSelector } from '@/components/JudgingModeSelector';
+import { ModelResponse, Verdict, StreamChunk, JudgingMode } from '@/lib/types';
 import {
   DEFAULT_COMMITTEE_MODEL_IDS,
   DEFAULT_JUDGE_MODEL,
@@ -25,6 +26,8 @@ export default function Home() {
     DEFAULT_COMMITTEE_MODEL_IDS.filter((id) => id !== DEFAULT_JUDGE_MODEL.id)
   );
   const [judgeModelId, setJudgeModelId] = useState(DEFAULT_JUDGE_MODEL.id);
+  const [judgingMode, setJudgingMode] = useState<JudgingMode>('judge');
+  const [executiveJudgeIds, setExecutiveJudgeIds] = useState<string[]>([]);
   const [judgingCriteria, setJudgingCriteria] = useState<JudgingCriteria>(
     JUDGING_PRESETS.find((p) => p.id === DEFAULT_CRITERIA_ID)!
   );
@@ -214,6 +217,22 @@ export default function Home() {
         return currentResponses;
       }
 
+      // Build judge model IDs based on mode
+      let judgeModelIds: string[] = [];
+      let judgeModelNames: string[] = [];
+
+      if (judgingMode === 'judge') {
+        judgeModelIds = [judgeModelId];
+        judgeModelNames = [getModelDisplayName(judgeModelId)];
+      } else if (judgingMode === 'committee') {
+        // All responding models vote
+        judgeModelIds = completedResponses.map((r) => r.modelId);
+        judgeModelNames = completedResponses.map((r) => r.modelName);
+      } else if (judgingMode === 'executive') {
+        judgeModelIds = executiveJudgeIds;
+        judgeModelNames = executiveJudgeIds.map((id) => getModelDisplayName(id));
+      }
+
       // Show loading state
       setVerdict({
         winnerModelId: '',
@@ -222,6 +241,7 @@ export default function Home() {
         scores: [],
         isLoading: true,
         error: null,
+        judgingMode,
       });
 
       // Make the judge request
@@ -232,6 +252,9 @@ export default function Home() {
           prompt: prompt.trim(),
           responses: completedResponses,
           judgeModelId,
+          judgeModelIds,
+          judgeModelNames,
+          judgingMode,
           criteria: judgingCriteria,
         }),
       })
@@ -250,6 +273,9 @@ export default function Home() {
             scores: data.scores || [],
             isLoading: false,
             error: null,
+            judgingMode,
+            votes: data.votes,
+            voteCount: data.voteCount,
           });
         })
         .catch((error) => {
@@ -266,7 +292,7 @@ export default function Home() {
 
       return currentResponses;
     });
-  }, [prompt, judgeModelId, judgingCriteria]);
+  }, [prompt, judgeModelId, judgingMode, executiveJudgeIds, judgingCriteria]);
 
   // Get score for a model from verdict
   const getScore = (modelId: string): number | undefined => {
@@ -316,6 +342,21 @@ export default function Home() {
                 judgeModelId={judgeModelId}
                 onCommitteeChange={setSelectedCommittee}
                 onJudgeChange={handleJudgeChange}
+                disabled={isSubmitting}
+              />
+              <JudgingModeSelector
+                mode={judgingMode}
+                onModeChange={setJudgingMode}
+                judgeModelId={judgeModelId}
+                onJudgeChange={handleJudgeChange}
+                executiveJudgeIds={executiveJudgeIds}
+                onExecutiveJudgesChange={setExecutiveJudgeIds}
+                committeeModelIds={selectedCommittee}
+                availableModels={AVAILABLE_MODELS.map((m) => ({
+                  id: m.id,
+                  name: m.displayName,
+                  provider: m.provider,
+                }))}
                 disabled={isSubmitting}
               />
               <CriteriaSelector

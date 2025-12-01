@@ -30,6 +30,17 @@ export interface ModelScore {
   weaknesses: string[];
 }
 
+// Judging modes
+export type JudgingMode = 'judge' | 'committee' | 'executive';
+
+export interface JudgeVote {
+  judgeModelId: string;
+  judgeModelName: string;
+  winnerModelId: string;
+  reasoning: string;
+  scores: ModelScore[];
+}
+
 export interface Verdict {
   winnerModelId: string;
   winnerModelName: string;
@@ -37,6 +48,10 @@ export interface Verdict {
   scores: ModelScore[];
   isLoading: boolean;
   error: string | null;
+  // Multi-judge fields
+  judgingMode?: JudgingMode;
+  votes?: JudgeVote[];
+  voteCount?: Record<string, number>; // modelId -> vote count
 }
 
 export interface Session {

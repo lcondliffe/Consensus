@@ -5,22 +5,30 @@ import {
   DEFAULT_CRITERIA_ID,
   formatCriteriaForPrompt,
 } from '@/lib/criteria';
+import { JudgingMode, JudgeVote } from '@/lib/types';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-interface JudgeRequest {
-  prompt: string;
-  responses: Array<{
-    modelId: string;
-    modelName: string;
-    content: string;
-  }>;
-  judgeModelId: string;
-  criteria?: JudgingCriteria; // Custom criteria object
-  criteriaId?: string; // Or preset ID
+interface ResponseInfo {
+  modelId: string;
+  modelName: string;
+  content: string;
 }
 
-interface JudgeVerdict {
+interface JudgeRequest {
+  prompt: string;
+  responses: ResponseInfo[];
+  // Single judge mode (backward compatible)
+  judgeModelId?: string;
+  // Multi-judge mode
+  judgingMode?: JudgingMode;
+  judgeModelIds?: string[]; // For executive mode
+  judgeModelNames?: Record<string, string>; // modelId -> displayName
+  criteria?: JudgingCriteria;
+  criteriaId?: string;
+}
+
+interface SingleJudgeVerdict {
   winnerModelId: string;
   winnerModelName: string;
   reasoning: string;
@@ -30,6 +38,12 @@ interface JudgeVerdict {
     strengths: string[];
     weaknesses: string[];
   }>;
+}
+
+interface MultiJudgeVerdict extends SingleJudgeVerdict {
+  judgingMode: JudgingMode;
+  votes: JudgeVote[];
+  voteCount: Record<string, number>;
 }
 
 export async function POST(request: NextRequest) {
@@ -43,58 +57,170 @@ export async function POST(request: NextRequest) {
     }
 
     const body: JudgeRequest = await request.json();
-    const { prompt, responses, judgeModelId, criteria, criteriaId } = body;
+    const { 
+      prompt, 
+      responses, 
+      judgeModelId, 
+      judgingMode = 'judge',
+      judgeModelIds,
+      judgeModelNames = {},
+      criteria, 
+      criteriaId 
+    } = body;
 
-    if (!prompt || !responses || responses.length < 2 || !judgeModelId) {
+    if (!prompt || !responses || responses.length < 2) {
       return NextResponse.json(
-        { error: 'Prompt, at least 2 responses, and judge model required' },
+        { error: 'Prompt and at least 2 responses required' },
         { status: 400 }
       );
     }
 
-    // Resolve criteria: use provided criteria, lookup by ID, or use default
+    // Resolve criteria
     const resolvedCriteria =
       criteria || getCriteriaById(criteriaId || DEFAULT_CRITERIA_ID) || getCriteriaById(DEFAULT_CRITERIA_ID)!;
 
-    // Build the judge prompt
-    const judgePrompt = buildJudgePrompt(prompt, responses, resolvedCriteria);
+    // Determine which models will judge
+    let judges: string[];
+    if (judgingMode === 'committee') {
+      // All responding models are judges (excluding their own response when judging)
+      judges = responses.map(r => r.modelId);
+    } else if (judgingMode === 'executive' && judgeModelIds && judgeModelIds.length > 0) {
+      judges = judgeModelIds;
+    } else {
+      // Single judge mode
+      if (!judgeModelId) {
+        return NextResponse.json(
+          { error: 'Judge model required' },
+          { status: 400 }
+        );
+      }
+      judges = [judgeModelId];
+    }
 
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
-        'X-Title': 'LLM Committee Judge',
-      },
-      body: JSON.stringify({
-        model: judgeModelId,
-        messages: [{ role: 'user', content: judgePrompt }],
-        response_format: { type: 'json_object' },
-      }),
+    // Query all judges in parallel
+    const votePromises = judges.map(async (judgeId) => {
+      // For committee mode, exclude the judge's own response
+      const responsesToJudge = judgingMode === 'committee'
+        ? responses.filter(r => r.modelId !== judgeId)
+        : responses;
+
+      if (responsesToJudge.length < 2) {
+        // Not enough responses for this judge to evaluate
+        return null;
+      }
+
+      const judgePrompt = buildJudgePrompt(prompt, responsesToJudge, resolvedCriteria);
+
+      try {
+        const response = await fetch(OPENROUTER_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
+            'X-Title': 'LLM Committee Judge',
+          },
+          body: JSON.stringify({
+            model: judgeId,
+            messages: [{ role: 'user', content: judgePrompt }],
+            response_format: { type: 'json_object' },
+          }),
+        });
+
+        if (!response.ok) {
+          console.error(`Judge ${judgeId} failed: ${response.status}`);
+          return null;
+        }
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+
+        if (!content) return null;
+
+        const verdict = parseJudgeResponse(content, responsesToJudge);
+        const judgeName = judgeModelNames[judgeId] || judgeId.split('/').pop() || judgeId;
+
+        return {
+          judgeModelId: judgeId,
+          judgeModelName: judgeName,
+          winnerModelId: verdict.winnerModelId,
+          reasoning: verdict.reasoning,
+          scores: verdict.scores,
+        } as JudgeVote;
+      } catch (error) {
+        console.error(`Judge ${judgeId} error:`, error);
+        return null;
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
+    const voteResults = await Promise.all(votePromises);
+    const votes = voteResults.filter((v): v is JudgeVote => v !== null);
+
+    if (votes.length === 0) {
       return NextResponse.json(
-        { error: `Judge API error: ${response.status} - ${errorText}` },
+        { error: 'No judges were able to evaluate the responses' },
         { status: 500 }
       );
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    // Aggregate votes
+    const voteCount: Record<string, number> = {};
+    votes.forEach(vote => {
+      voteCount[vote.winnerModelId] = (voteCount[vote.winnerModelId] || 0) + 1;
+    });
 
-    if (!content) {
-      return NextResponse.json(
-        { error: 'No response from judge model' },
-        { status: 500 }
-      );
-    }
+    // Find winner (most votes)
+    let winnerModelId = '';
+    let maxVotes = 0;
+    Object.entries(voteCount).forEach(([modelId, count]) => {
+      if (count > maxVotes) {
+        maxVotes = count;
+        winnerModelId = modelId;
+      }
+    });
 
-    // Parse the JSON verdict
-    const verdict = parseJudgeResponse(content, responses);
-    return NextResponse.json(verdict);
+    const winnerModelName = responses.find(r => r.modelId === winnerModelId)?.modelName || winnerModelId;
+
+    // Aggregate scores (average across judges)
+    const scoreMap = new Map<string, { total: number; count: number; strengths: string[]; weaknesses: string[] }>();
+    votes.forEach(vote => {
+      vote.scores.forEach(score => {
+        const existing = scoreMap.get(score.modelId) || { total: 0, count: 0, strengths: [], weaknesses: [] };
+        existing.total += score.score;
+        existing.count += 1;
+        existing.strengths.push(...score.strengths);
+        existing.weaknesses.push(...score.weaknesses);
+        scoreMap.set(score.modelId, existing);
+      });
+    });
+
+    const aggregatedScores = Array.from(scoreMap.entries()).map(([modelId, data]) => ({
+      modelId,
+      score: Math.round(data.total / data.count),
+      strengths: Array.from(new Set(data.strengths)).slice(0, 3),
+      weaknesses: Array.from(new Set(data.weaknesses)).slice(0, 3),
+    }));
+
+    // Build reasoning summary
+    const reasoning = judges.length === 1
+      ? votes[0].reasoning
+      : `${winnerModelName} won with ${maxVotes}/${votes.length} votes. ` +
+        votes.filter(v => v.winnerModelId === winnerModelId)
+          .map(v => v.reasoning)
+          .slice(0, 2)
+          .join(' ');
+
+    const result: MultiJudgeVerdict = {
+      winnerModelId,
+      winnerModelName,
+      reasoning,
+      scores: aggregatedScores,
+      judgingMode,
+      votes,
+      voteCount,
+    };
+
+    return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -156,7 +282,7 @@ The score should be 0-100, weighted by the criteria importance. Be specific - re
 function parseJudgeResponse(
   content: string,
   responses: JudgeRequest['responses']
-): JudgeVerdict {
+): SingleJudgeVerdict {
   try {
     // Try to parse as JSON directly
     const parsed = JSON.parse(content);
