@@ -1,7 +1,7 @@
-# LLM Committee - Product Specification
+# Consensus - Product Specification
 
 ## Overview
-LLM Committee is a web application that sends user prompts to multiple AI models simultaneously, streams their responses in real-time, and uses a judge model to evaluate and declare a winner.
+Consensus is a web application that sends user prompts to multiple AI models simultaneously, streams their responses in real-time, and uses a judge model to evaluate and declare a winner.
 
 ## User Stories
 

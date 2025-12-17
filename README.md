@@ -1,4 +1,4 @@
-# LLM Committee
+# Consensus
 
 Compare AI responses from multiple models simultaneously and let a judge model declare a winner.
 
@@ -23,7 +23,7 @@ Compare AI responses from multiple models simultaneously and let a judge model d
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd llm-committee
+cd consensus
 
 # Create environment file
 cp .env.example .env

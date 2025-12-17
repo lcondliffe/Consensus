@@ -5,7 +5,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'LLM Committee',
+  title: 'Consensus',
   description: 'Compare AI responses and let a judge decide the winner',
 };
 

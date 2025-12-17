@@ -309,7 +309,7 @@ export default function Home() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
         <div>
-          <h1 className="text-xl font-bold text-gray-100">LLM Committee</h1>
+          <h1 className="text-xl font-bold text-gray-100">Consensus</h1>
           <p className="text-sm text-gray-500">
             Compare AI responses and let a judge decide
           </p>

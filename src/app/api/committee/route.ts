@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
-            'X-Title': 'LLM Committee',
+            'X-Title': 'Consensus',
           },
           body: JSON.stringify({
             model: modelId,
