@@ -1,62 +1,14 @@
-mode: ContinuousDeployment
+workflow: GitHubFlow/v1
+assembly-versioning-scheme: MajorMinorPatch
+assembly-file-versioning-scheme: MajorMinorPatch
+tag-prefix: '[vV]?'
+major-version-bump-message: '\+semver:\s?(breaking|major)'
+minor-version-bump-message: '\+semver:\s?(feature|minor)'
+patch-version-bump-message: '\+semver:\s?(fix|patch)'
+no-bump-message: '\+semver:\s?(none|skip)'
 branches:
   main:
-    regex: ^main$
-    mode: ContinuousDelivery
-    tag: ''
+    regex: ^master$|^main$
+    label: ''
     increment: Patch
-    prevent-increment-of-merged-branch-version: true
-    track-merge-target: false
-    source-branches: ['develop', 'feature', 'hotfix', 'release']
-    tracks-release-branches: false
-    is-release-branch: true
-  develop:
-    regex: ^develop$
-    mode: ContinuousDeployment
-    tag: alpha
-    increment: Minor
-    prevent-increment-of-merged-branch-version: false
-    track-merge-target: true
-    source-branches: []
-    tracks-release-branches: true
-    is-release-branch: false
-  feature:
-    regex: ^feature[/-]
-    mode: ContinuousDeployment
-    tag: '{BranchName}'
-    increment: Inherit
-    prevent-increment-of-merged-branch-version: false
-    track-merge-target: false
-    source-branches: ['develop', 'main', 'feature']
-    tracks-release-branches: false
-    is-release-branch: false
-  release:
-    regex: ^release[/-]
-    mode: ContinuousDeployment
-    tag: rc
-    increment: None
-    prevent-increment-of-merged-branch-version: true
-    track-merge-target: false
-    source-branches: ['develop', 'main']
-    tracks-release-branches: false
-    is-release-branch: true
-  hotfix:
-    regex: ^hotfix[/-]
-    mode: ContinuousDeployment
-    tag: hotfix
-    increment: Patch
-    prevent-increment-of-merged-branch-version: false
-    track-merge-target: false
-    source-branches: ['main']
-    tracks-release-branches: false
-    is-release-branch: false
-  pull-request:
-    regex: ^(pull|pr|merge)[/-]
-    mode: ContinuousDeployment
-    tag: PR
-    increment: Inherit
-    prevent-increment-of-merged-branch-version: false
-    track-merge-target: false
-    source-branches: ['develop', 'main', 'feature', 'hotfix', 'release']
-    tracks-release-branches: false
-    is-release-branch: false
+    is-main-branch: true
