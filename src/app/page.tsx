@@ -14,7 +14,6 @@ import {
   DEFAULT_COMMITTEE_MODEL_IDS,
   DEFAULT_JUDGE_MODEL,
   getModelDisplayName,
-  AVAILABLE_MODELS,
 } from '@/lib/models';
 import { JudgingCriteria, JUDGING_PRESETS, DEFAULT_CRITERIA_ID } from '@/lib/criteria';
 import clsx from 'clsx';
