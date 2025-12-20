@@ -175,6 +175,8 @@ jobs:
     needs: [build-and-push]
     permissions:
       security-events: write
+    env:
+      SCAN_IMAGE_NAME: ${{ github.repository }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -182,17 +184,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Convert image name to lowercase
+        id: image-name
+        run: echo "lowercase=${SCAN_IMAGE_NAME,,}" >> $GITHUB_OUTPUT
+
       - name: Build image for scanning
         uses: docker/build-push-action@v5
         with:
           context: .
           load: true
-          tags: ${{ env.IMAGE_NAME }}:scan
+          tags: ${{ steps.image-name.outputs.lowercase }}:scan
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:scan
+          image-ref: ${{ steps.image-name.outputs.lowercase }}:scan
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
