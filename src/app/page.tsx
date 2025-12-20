@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Settings, X, LayoutGrid, Rows3 } from 'lucide-react';
 import { ModelSelector } from '@/components/ModelSelector';
+import { ModelOption } from '@/components/ModelPicker';
 import { PromptInput } from '@/components/PromptInput';
 import { ResponsePanel, ViewMode } from '@/components/ResponsePanel';
 import { VerdictPanel } from '@/components/VerdictPanel';
@@ -25,6 +26,40 @@ export default function Home() {
   const [selectedCommittee, setSelectedCommittee] = useState<string[]>(
     DEFAULT_COMMITTEE_MODEL_IDS.filter((id) => id !== DEFAULT_JUDGE_MODEL.id)
   );
+
+  // Model state
+  const [models, setModels] = useState<ModelOption[]>([
+    { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', provider: 'Anthropic', contextLength: 200000 },
+    { id: 'openai/gpt-4o', name: 'GPT-4o', provider: 'OpenAI', contextLength: 128000 },
+    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', provider: 'Google', contextLength: 1000000 },
+    { id: 'anthropic/claude-3.5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', contextLength: 200000 },
+    { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', contextLength: 128000 },
+  ]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [modelError, setModelError] = useState<string | null>(null);
+
+  const fetchModels = async () => {
+    setIsLoadingModels(true);
+    setModelError(null);
+    try {
+      const response = await fetch('/api/models');
+      if (!response.ok) throw new Error('Failed to fetch models');
+      const data = await response.json();
+      if (data.models && data.models.length > 0) {
+        setModels(data.models);
+      }
+    } catch (err) {
+      setModelError('Failed to load models');
+      console.error('Error fetching models:', err);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchModels();
+  }, []);
+
   const [judgeModelId, setJudgeModelId] = useState(DEFAULT_JUDGE_MODEL.id);
   const [judgingMode, setJudgingMode] = useState<JudgingMode>('judge');
   const [executiveJudgeIds, setExecutiveJudgeIds] = useState<string[]>([]);
@@ -302,7 +337,7 @@ export default function Home() {
   const responsesArray = Array.from(responses.values());
   const hasResponses = responsesArray.length > 0;
   const judgeModelName =
-    AVAILABLE_MODELS.find((m) => m.id === judgeModelId)?.displayName || judgeModelId;
+    models.find((m) => m.id === judgeModelId)?.name || judgeModelId;
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -338,13 +373,17 @@ export default function Home() {
         {showSettings && (
             <div className="space-y-6">
               <ModelSelector
+                models={models}
+                isLoading={isLoadingModels}
+                error={modelError}
+                onRefresh={fetchModels}
                 selectedCommittee={selectedCommittee}
                 judgeModelId={judgeModelId}
                 onCommitteeChange={setSelectedCommittee}
-                onJudgeChange={handleJudgeChange}
                 disabled={isSubmitting}
               />
               <JudgingModeSelector
+                models={models}
                 mode={judgingMode}
                 onModeChange={setJudgingMode}
                 judgeModelId={judgeModelId}
@@ -352,11 +391,6 @@ export default function Home() {
                 executiveJudgeIds={executiveJudgeIds}
                 onExecutiveJudgesChange={setExecutiveJudgeIds}
                 committeeModelIds={selectedCommittee}
-                availableModels={AVAILABLE_MODELS.map((m) => ({
-                  id: m.id,
-                  name: m.displayName,
-                  provider: m.provider,
-                }))}
                 disabled={isSubmitting}
               />
               <CriteriaSelector
