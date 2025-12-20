@@ -6,7 +6,6 @@ import {
   JudgingCriteria,
   JudgingCriterion,
   JUDGING_PRESETS,
-  DEFAULT_CRITERIA_ID,
 } from '@/lib/criteria';
 import clsx from 'clsx';
 
