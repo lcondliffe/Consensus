@@ -1,9 +1,10 @@
 'use client';
 
-import { AlertCircle, CheckCircle2, Loader2, Maximize2, Minimize2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Maximize2, Minimize2, Copy } from 'lucide-react';
 import { ModelResponse } from '@/lib/types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import clsx from 'clsx';
+import { useState } from 'react';
 
 export type ViewMode = 'grid' | 'stacked';
 
@@ -27,92 +28,137 @@ export function ResponsePanel({
   onMinimize,
 }: ResponsePanelProps) {
   const { modelName, content, isStreaming, isComplete, error, latencyMs } = response;
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div
       className={clsx(
-        'flex flex-col rounded-xl border overflow-hidden transition-all',
+        'group flex flex-col rounded-2xl overflow-hidden transition-all duration-300',
+        'bg-surface-2/40 backdrop-blur-sm border border-white/5',
         // Maximized mode takes full height
-        isMaximized && 'h-full',
+        isMaximized && 'h-full shadow-2xl ring-1 ring-white/10',
         // In grid mode, use fixed height; in stacked mode, use min-height
-        !isMaximized && viewMode === 'grid' && 'h-[400px]',
-        !isMaximized && viewMode === 'stacked' && 'min-h-[200px] max-h-[600px]',
-        isWinner ? 'winner-card border-green-500/50 ring-1 ring-green-500/30' : 'border-gray-700',
-        error && 'border-red-500/50'
+        !isMaximized && viewMode === 'grid' && 'h-[400px] hover:shadow-lg hover:bg-surface-2/60 hover:border-white/10',
+        !isMaximized && viewMode === 'stacked' && 'min-h-[200px] max-h-[600px] hover:shadow-lg hover:bg-surface-2/60',
+        isWinner && 'winner-card ring-1 ring-green-500/50 shadow-green-900/20 shadow-lg',
+        error && 'ring-1 ring-red-500/50 bg-red-900/5'
       )}
     >
       {/* Header */}
       <div
         className={clsx(
-          'flex items-center justify-between px-4 py-3 border-b flex-shrink-0',
-          isWinner ? 'bg-green-900/20 border-green-800/30' : 'bg-gray-800/50 border-gray-700'
+          'flex items-center justify-between px-4 py-3 border-b flex-shrink-0 transition-colors',
+          isWinner ? 'bg-green-500/5 border-green-500/20' : 'bg-white/2 border-white/5'
         )}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="font-medium text-gray-100 truncate">{modelName}</h3>
+          <div className={clsx(
+            "w-2 h-2 rounded-full",
+            isStreaming ? "bg-accent animate-pulse" : isComplete ? "bg-green-500/50" : "bg-gray-600"
+          )} />
+          <h3 className={clsx(
+            "font-medium truncate text-sm",
+            isWinner ? "text-green-400" : "text-gray-200"
+          )}>{modelName}</h3>
+          
           {isWinner && (
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-medium flex-shrink-0">
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-400 text-[10px] font-bold uppercase tracking-wider flex-shrink-0 border border-green-500/20">
               <CheckCircle2 className="w-3 h-3" />
               Winner
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500 flex-shrink-0">
+        
+        <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">
           {score !== undefined && (
-            <span className="px-2 py-0.5 rounded bg-gray-700 text-gray-300">
-              {score}/100
+            <div className="flex items-center gap-1">
+              <span className={clsx(
+                "font-mono font-medium",
+                score >= 80 ? "text-green-400" : score >= 60 ? "text-yellow-400" : "text-gray-400"
+              )}>
+                {score}
+              </span>
+              <span className="text-gray-600">/100</span>
+            </div>
+          )}
+          
+          {isStreaming && (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+          )}
+          
+          {isComplete && latencyMs && (
+            <span className="font-mono text-[10px] text-gray-600">
+              {(latencyMs / 1000).toFixed(1)}s
             </span>
           )}
-          {isStreaming && (
-            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-          )}
-          {isComplete && latencyMs && (
-            <span>{(latencyMs / 1000).toFixed(1)}s</span>
-          )}
-          {/* Maximize/Minimize button */}
-          {isMaximized ? (
-            onMinimize && (
-              <button
-                onClick={onMinimize}
-                className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
-                title="Minimize"
-              >
-                <Minimize2 className="w-4 h-4" />
-              </button>
-            )
-          ) : (
-            onMaximize && (
-              <button
-                onClick={onMaximize}
-                className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
-                title="Maximize"
-              >
-                <Maximize2 className="w-4 h-4" />
-              </button>
-            )
-          )}
+
+          {/* Actions */}
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={copyToClipboard}
+              className="p-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors"
+              title="Copy response"
+            >
+              {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+            
+            {isMaximized ? (
+              onMinimize && (
+                <button
+                  onClick={onMinimize}
+                  className="p-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors"
+                  title="Minimize"
+                >
+                  <Minimize2 className="w-3.5 h-3.5" />
+                </button>
+              )
+            ) : (
+              onMaximize && (
+                <button
+                  onClick={onMaximize}
+                  className="p-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors"
+                  title="Maximize"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              )
+            )}
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 overflow-y-auto bg-gray-900/30 text-sm text-gray-300">
+      <div className={clsx(
+        "flex-1 p-4 overflow-y-auto text-sm leading-relaxed custom-scrollbar",
+        isWinner ? "bg-gradient-to-b from-green-500/5 to-transparent" : "bg-transparent"
+      )}>
         {error ? (
-          <div className="flex items-start gap-2 text-red-400">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium">Error</p>
-              <p className="text-sm text-red-400/80">{error}</p>
+          <div className="flex flex-col items-center justify-center h-full text-center p-4">
+            <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center mb-3 text-red-400">
+              <AlertCircle className="w-5 h-5" />
             </div>
+            <p className="font-medium text-red-400">Generation Failed</p>
+            <p className="text-xs text-red-400/60 mt-1 max-w-[200px] break-words">{error}</p>
           </div>
         ) : content ? (
-          <MarkdownRenderer content={content} isStreaming={isStreaming} />
+          <div className="prose prose-invert prose-sm max-w-none">
+            <MarkdownRenderer content={content} isStreaming={isStreaming} />
+          </div>
         ) : isStreaming ? (
-          <div className="flex items-center gap-2 text-gray-500">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Waiting for response...</span>
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-3">
+            <div className="w-2 h-2 rounded-full bg-accent animate-ping" />
+            <span className="text-xs font-medium animate-pulse">Thinking...</span>
           </div>
         ) : (
-          <span className="text-gray-500">No response yet</span>
+          <div className="flex items-center justify-center h-full text-gray-600 text-xs italic">
+            Waiting for response...
+          </div>
         )}
       </div>
     </div>

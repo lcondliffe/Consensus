@@ -3,36 +3,41 @@
 @tailwind utilities;
 
 :root {
-  --surface-1: 17 24 39;
-  --surface-2: 31 41 55;
-  --surface-3: 55 65 81;
-  --foreground: 249 250 251;
-  --border: 75 85 99;
+  --background: 10 10 12; /* #0a0a0c */
+  --surface-1: 18 18 21; /* #121215 */
+  --surface-2: 24 24 27; /* #18181b */
+  --surface-3: 39 39 42; /* #27272a */
+  --accent: 59 130 246; /* blue-500 */
+  --accent-glow: 37 99 235; /* blue-600 */
+  --foreground: 228 228 231; /* zinc-200 */
+  --foreground-muted: 161 161 170; /* zinc-400 */
+  --border: 39 39 42; /* zinc-800 */
 }
 
 body {
   color: rgb(var(--foreground));
-  background: linear-gradient(135deg, rgb(17, 24, 39) 0%, rgb(31, 41, 55) 100%);
+  background: rgb(var(--background));
   min-height: 100vh;
+  font-feature-settings: "rlig" 1, "calt" 1;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(var(--surface-1));
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: rgb(var(--surface-3));
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--border));
+  background: rgb(var(--foreground-muted));
 }
 
 /* Streaming cursor animation */
@@ -43,8 +48,10 @@ body {
 
 .streaming-cursor::after {
   content: '▋';
-  animation: blink 1s infinite;
-  color: rgb(59, 130, 246);
+  animation: blink 1s step-end infinite;
+  color: rgb(var(--accent));
+  margin-left: 2px;
+  vertical-align: text-bottom;
 }
 
 /* Winner highlight */
@@ -57,6 +64,21 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, transparent 50%);
+  background: radial-gradient(circle at top right, rgba(34, 197, 94, 0.15), transparent 60%);
   pointer-events: none;
+}
+
+/* Glass effect utilities */
+.glass {
+  background: rgba(18, 18, 21, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel {
+  background: rgba(24, 24, 27, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
