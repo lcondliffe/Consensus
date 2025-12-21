@@ -60,8 +60,8 @@ export function ResponsePanel({
           isWinner ? 'bg-green-500/5 border-green-500/20' : 'bg-white/2 border-white/5'
         )}
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="relative">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="relative flex-shrink-0">
              <div className="w-8 h-8 rounded-lg bg-surface-1 flex items-center justify-center border border-white/10">
                <ProviderLogo provider={provider} size={20} />
              </div>
@@ -72,26 +72,28 @@ export function ResponsePanel({
              )}
           </div>
 
-          <div className="min-w-0">
-            <h3 className={clsx(
-              "font-medium truncate text-sm flex items-center gap-2",
-              isWinner ? "text-green-400" : "text-gray-200"
-            )}>
-              {modelName}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className={clsx(
+                "font-medium truncate text-sm",
+                isWinner ? "text-green-400" : "text-gray-200"
+              )}>
+                {modelName}
+              </h3>
               {isWinner && (
                 <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-400 text-[10px] font-bold uppercase tracking-wider flex-shrink-0 border border-green-500/20">
                   <CheckCircle2 className="w-3 h-3" />
                   Winner
                 </span>
               )}
-            </h3>
+            </div>
             <p className="text-[10px] text-gray-500 truncate">{provider}</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">
+        <div className="flex items-center gap-2 text-xs text-gray-500 flex-shrink-0 ml-2">
           {score !== undefined && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-surface-1/50">
               <span className={clsx(
                 "font-mono font-medium",
                 score >= 80 ? "text-green-400" : score >= 60 ? "text-yellow-400" : "text-gray-400"

@@ -418,7 +418,7 @@ export default function Home() {
           
           {/* Scrollable Area */}
           <div className="flex-1 overflow-y-auto scroll-smooth">
-            <div className="max-w-5xl mx-auto p-4 md:p-6 pb-32 min-h-full flex flex-col">
+            <div className="max-w-5xl mx-auto p-4 md:p-6 pb-64 min-h-full flex flex-col">
               
               {/* Empty State */}
               {!hasResponses && (
@@ -534,7 +534,7 @@ export default function Home() {
 
                   {/* Verdict Section - Distinct from responses */}
                   {!maximizedModelId && (
-                     <div className="mt-8 max-w-3xl mx-auto w-full">
+                     <div className="mt-8 max-w-3xl mx-auto w-full mb-24">
                        <VerdictPanel verdict={verdict} judgeModelName={judgeModelName} />
                      </div>
                   )}
@@ -544,7 +544,7 @@ export default function Home() {
           </div>
 
           {/* Prompt Input Area - Fixed at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-t from-background via-background to-transparent pt-12 z-20">
+          <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-t from-background via-background/95 to-transparent pt-16 z-20">
             <div className="max-w-3xl mx-auto">
               <PromptInput
                 value={prompt}
