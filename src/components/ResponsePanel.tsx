@@ -2,7 +2,9 @@
 
 import { AlertCircle, CheckCircle2, Loader2, Maximize2, Minimize2, Copy } from 'lucide-react';
 import { ModelResponse } from '@/lib/types';
+import { getModelById } from '@/lib/models';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { ProviderLogo } from './ProviderLogo';
 import clsx from 'clsx';
 import { useState } from 'react';
 
@@ -27,8 +29,9 @@ export function ResponsePanel({
   onMaximize,
   onMinimize,
 }: ResponsePanelProps) {
-  const { modelName, content, isStreaming, isComplete, error, latencyMs } = response;
+  const { modelName, content, isStreaming, isComplete, error, latencyMs, modelId } = response;
   const [copied, setCopied] = useState(false);
+  const provider = getModelById(modelId)?.provider || 'Unknown';
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(content);
@@ -57,22 +60,33 @@ export function ResponsePanel({
           isWinner ? 'bg-green-500/5 border-green-500/20' : 'bg-white/2 border-white/5'
         )}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <div className={clsx(
-            "w-2 h-2 rounded-full",
-            isStreaming ? "bg-accent animate-pulse" : isComplete ? "bg-green-500/50" : "bg-gray-600"
-          )} />
-          <h3 className={clsx(
-            "font-medium truncate text-sm",
-            isWinner ? "text-green-400" : "text-gray-200"
-          )}>{modelName}</h3>
-          
-          {isWinner && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-400 text-[10px] font-bold uppercase tracking-wider flex-shrink-0 border border-green-500/20">
-              <CheckCircle2 className="w-3 h-3" />
-              Winner
-            </span>
-          )}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative">
+             <div className="w-8 h-8 rounded-lg bg-surface-1 flex items-center justify-center border border-white/10">
+               <ProviderLogo provider={provider} size={20} />
+             </div>
+             {isStreaming && (
+               <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-surface-2 flex items-center justify-center">
+                 <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+               </div>
+             )}
+          </div>
+
+          <div className="min-w-0">
+            <h3 className={clsx(
+              "font-medium truncate text-sm flex items-center gap-2",
+              isWinner ? "text-green-400" : "text-gray-200"
+            )}>
+              {modelName}
+              {isWinner && (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-400 text-[10px] font-bold uppercase tracking-wider flex-shrink-0 border border-green-500/20">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Winner
+                </span>
+              )}
+            </h3>
+            <p className="text-[10px] text-gray-500 truncate">{provider}</p>
+          </div>
         </div>
         
         <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">

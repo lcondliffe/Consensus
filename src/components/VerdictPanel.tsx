@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { AlertCircle, Award, Loader2, ChevronDown, ChevronUp, Users, Gavel, UserCheck, Star } from 'lucide-react';
 import { Verdict, JudgingMode } from '@/lib/types';
+import { getModelById } from '@/lib/models';
+import { ProviderLogo } from './ProviderLogo';
 import clsx from 'clsx';
 
 interface VerdictPanelProps {
@@ -80,11 +82,16 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
         <div className="space-y-6">
             {/* Winner announcement */}
             <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 pb-6 border-b border-white/5">
-              <div>
-                <span className="text-xs text-amber-200/50 uppercase tracking-widest font-bold mb-1 block">Winner</span>
-                <span className="font-bold text-2xl md:text-3xl text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-amber-200">
-                  {winnerModelName}
-                </span>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-surface-1 border border-white/10 flex items-center justify-center shadow-lg">
+                  <ProviderLogo provider={getModelById(verdict.winnerModelId)?.provider || 'Unknown'} size={32} />
+                </div>
+                <div>
+                   <span className="text-xs text-amber-200/50 uppercase tracking-widest font-bold mb-1 block">Winner</span>
+                   <span className="font-bold text-2xl md:text-3xl text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-amber-200">
+                     {winnerModelName}
+                   </span>
+                </div>
               </div>
               
               {hasMultipleJudges && voteCount && (
@@ -156,7 +163,12 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
                             className="p-3 rounded-lg bg-surface-1/50 border border-white/5 text-xs"
                           >
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="font-medium text-gray-300">{vote.judgeModelName}</span>
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded bg-surface-2 flex items-center justify-center">
+                                   <ProviderLogo provider={getModelById(vote.judgeModelId)?.provider || 'Unknown'} size={12} />
+                                </div>
+                                <span className="font-medium text-gray-300">{vote.judgeModelName}</span>
+                              </div>
                               <span className="text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded">→ {votedFor}</span>
                             </div>
                             <p className="text-gray-500 line-clamp-2 italic">{vote.reasoning}</p>
@@ -182,22 +194,25 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
                         className="flex items-center gap-4 p-3 rounded-xl bg-surface-2/40 border border-white/5 hover:border-white/10 transition-colors"
                       >
                         <div className="w-12 h-12 rounded-lg bg-surface-1 flex items-center justify-center border border-white/5">
-                          <span
-                            className={clsx(
-                              'font-bold text-lg',
-                              score.score >= 80
-                                ? 'text-green-400'
-                                : score.score >= 60
-                                ? 'text-yellow-400'
-                                : 'text-gray-400'
-                            )}
-                          >
-                            {score.score}
-                          </span>
+                          <ProviderLogo provider={getModelById(score.modelId)?.provider || 'Unknown'} size={24} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-200 truncate mb-1">
-                            {score.modelId.split('/').pop()}
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="text-sm font-medium text-gray-200 truncate">
+                              {score.modelId.split('/').pop()}
+                            </div>
+                            <span
+                              className={clsx(
+                                'font-bold text-sm',
+                                score.score >= 80
+                                  ? 'text-green-400'
+                                  : score.score >= 60
+                                  ? 'text-yellow-400'
+                                  : 'text-gray-400'
+                              )}
+                            >
+                              {score.score}
+                            </span>
                           </div>
                           
                           <div className="flex flex-wrap gap-1">

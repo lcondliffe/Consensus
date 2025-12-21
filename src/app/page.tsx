@@ -9,6 +9,7 @@ import { ResponsePanel, ViewMode } from '@/components/ResponsePanel';
 import { VerdictPanel } from '@/components/VerdictPanel';
 import { CriteriaSelector } from '@/components/CriteriaSelector';
 import { JudgingModeSelector } from '@/components/JudgingModeSelector';
+import { CommitteeDisplay } from '@/components/CommitteeDisplay';
 import { ModelResponse, Verdict, StreamChunk, JudgingMode } from '@/lib/types';
 import {
   DEFAULT_COMMITTEE_MODEL_IDS,
@@ -421,15 +422,26 @@ export default function Home() {
               
               {/* Empty State */}
               {!hasResponses && (
-                <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] animate-in fade-in duration-700 slide-in-from-bottom-4">
-                  <div className="w-16 h-16 rounded-2xl bg-surface-2 flex items-center justify-center mb-6 shadow-glow">
-                    <LayoutGrid className="w-8 h-8 text-accent" />
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in duration-700 slide-in-from-bottom-4 py-8">
+                  <div className="w-14 h-14 rounded-2xl bg-surface-2 flex items-center justify-center mb-4 shadow-glow">
+                    <LayoutGrid className="w-7 h-7 text-accent" />
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Consensus Committee</h2>
-                  <p className="text-foreground-muted max-w-md text-center mb-8 leading-relaxed">
-                    Submit a prompt to gather responses from {selectedCommittee.length} models simultaneously, 
-                    then let {judgeModelName} evaluate the results.
+                  <p className="text-foreground-muted max-w-md text-center mb-8 leading-relaxed text-sm">
+                    Submit a prompt to gather responses from your selected models, 
+                    then let the judge evaluate the results.
                   </p>
+                  
+                  {/* Committee Display */}
+                  <div className="w-full mb-8">
+                    <CommitteeDisplay
+                      models={models}
+                      selectedCommittee={selectedCommittee}
+                      judgingMode={judgingMode}
+                      judgeModelId={judgeModelId}
+                      executiveJudgeIds={executiveJudgeIds}
+                    />
+                  </div>
                   
                   {!showSettings && (
                     <button
