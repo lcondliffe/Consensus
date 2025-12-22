@@ -20,7 +20,7 @@ export function CriteriaSelector({
   onCriteriaChange,
   disabled = false,
 }: CriteriaSelectorProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [isCustomMode, setIsCustomMode] = useState(selectedCriteria.isCustom ?? false);
   const [customCriteria, setCustomCriteria] = useState<JudgingCriterion[]>(
     selectedCriteria.isCustom ? selectedCriteria.criteria : []

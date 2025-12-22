@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Settings, X, LayoutGrid, Rows3 } from 'lucide-react';
+import { Settings, X, LayoutGrid, Rows3, RotateCcw } from 'lucide-react';
 import { ModelSelector } from '@/components/ModelSelector';
 import { ModelOption } from '@/components/ModelPicker';
 import { PromptInput } from '@/components/PromptInput';
@@ -9,6 +9,7 @@ import { ResponsePanel, ViewMode } from '@/components/ResponsePanel';
 import { VerdictPanel } from '@/components/VerdictPanel';
 import { CriteriaSelector } from '@/components/CriteriaSelector';
 import { JudgingModeSelector } from '@/components/JudgingModeSelector';
+import { CommitteeDisplay } from '@/components/CommitteeDisplay';
 import { ModelResponse, Verdict, StreamChunk, JudgingMode } from '@/lib/types';
 import {
   DEFAULT_COMMITTEE_MODEL_IDS,
@@ -87,6 +88,20 @@ export default function Home() {
     },
     [selectedCommittee]
   );
+
+  // Reset to start a new prompt
+  const handleReset = useCallback(() => {
+    // Abort any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setResponses(new Map());
+    setVerdict(null);
+    setPrompt('');
+    setIsSubmitting(false);
+    setMaximizedModelId(null);
+  }, []);
 
   // Submit prompt to committee
   const handleSubmit = useCallback(async () => {
@@ -339,186 +354,234 @@ export default function Home() {
     models.find((m) => m.id === judgeModelId)?.name || judgeModelId;
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="h-screen flex flex-col bg-background text-foreground overflow-hidden selection:bg-accent/20">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
-        <div>
-          <h1 className="text-xl font-bold text-gray-100">Consensus</h1>
-          <p className="text-sm text-gray-500">
-            Compare AI responses and let a judge decide
-          </p>
+      <header className="h-14 flex items-center justify-between px-4 md:px-6 border-b border-border bg-surface-1/50 backdrop-blur z-20">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+            <LayoutGrid className="w-5 h-5 text-accent" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold tracking-tight text-white">Consensus</h1>
+            <p className="text-[10px] text-foreground-muted font-medium uppercase tracking-wider">
+              Committee Evaluation
+            </p>
+          </div>
         </div>
         <button
           onClick={() => setShowSettings(!showSettings)}
           className={clsx(
-            'p-2 rounded-lg transition-colors',
+            'p-2 rounded-lg transition-all duration-200',
             showSettings
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-800 text-gray-400 hover:text-gray-200'
+              ? 'bg-surface-2 text-white shadow-sm'
+              : 'text-foreground-muted hover:text-foreground hover:bg-surface-2/50'
           )}
         >
-          {showSettings ? <X className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
+          {showSettings ? <X className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
         </button>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Settings Panel (collapsible) */}
-        <aside
-          className={clsx(
-            'border-r border-gray-800 bg-gray-900/50 transition-all duration-300 overflow-hidden',
-            showSettings ? 'w-80 p-4' : 'w-0 p-0'
-          )}
-        >
-        {showSettings && (
-            <div className="space-y-6">
-              <ModelSelector
-                models={models}
-                isLoading={isLoadingModels}
-                error={modelError}
-                onRefresh={fetchModels}
-                selectedCommittee={selectedCommittee}
-                judgeModelId={judgeModelId}
-                onCommitteeChange={setSelectedCommittee}
-                disabled={isSubmitting}
-              />
-              <JudgingModeSelector
-                models={models}
-                mode={judgingMode}
-                onModeChange={setJudgingMode}
-                judgeModelId={judgeModelId}
-                onJudgeChange={handleJudgeChange}
-                executiveJudgeIds={executiveJudgeIds}
-                onExecutiveJudgesChange={setExecutiveJudgeIds}
-                committeeModelIds={selectedCommittee}
-                disabled={isSubmitting}
-              />
-              <CriteriaSelector
-                selectedCriteria={judgingCriteria}
-                onCriteriaChange={setJudgingCriteria}
-                disabled={isSubmitting}
-              />
-            </div>
-          )}
-        </aside>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col p-6 overflow-hidden">
-          {/* Prompt Input */}
-          <div className="mb-6">
-            <PromptInput
-              value={prompt}
-              onChange={setPrompt}
-              onSubmit={handleSubmit}
+      {/* Top Settings Panel */}
+      <div
+        className={clsx(
+          'border-b border-border bg-surface-1/30 backdrop-blur transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] overflow-hidden',
+          showSettings ? 'max-h-[80vh] opacity-100' : 'max-h-0 opacity-0'
+        )}
+      >
+        <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 overflow-y-auto max-h-[80vh]">
+          <div className="space-y-2">
+            <ModelSelector
+              models={models}
+              isLoading={isLoadingModels}
+              error={modelError}
+              onRefresh={fetchModels}
+              selectedCommittee={selectedCommittee}
+              judgeModelId={judgeModelId}
+              onCommitteeChange={setSelectedCommittee}
               disabled={isSubmitting}
-              isLoading={isSubmitting}
-              minModels={MIN_COMMITTEE_MODELS}
-              selectedModelCount={selectedCommittee.length}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <JudgingModeSelector
+              models={models}
+              mode={judgingMode}
+              onModeChange={setJudgingMode}
+              judgeModelId={judgeModelId}
+              onJudgeChange={handleJudgeChange}
+              executiveJudgeIds={executiveJudgeIds}
+              onExecutiveJudgesChange={setExecutiveJudgeIds}
+              committeeModelIds={selectedCommittee}
+              disabled={isSubmitting}
             />
           </div>
 
-          {/* Responses Grid */}
-          {hasResponses && (
-            <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-              {/* View toggle - hide when maximized */}
-              {!maximizedModelId && (
-                <div className="flex items-center justify-end gap-1">
-                  <span className="text-xs text-gray-500 mr-2">View:</span>
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={clsx(
-                      'p-1.5 rounded transition-colors',
-                      viewMode === 'grid'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                    )}
-                    title="Grid view"
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('stacked')}
-                    className={clsx(
-                      'p-1.5 rounded transition-colors',
-                      viewMode === 'stacked'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                    )}
-                    title="Stacked view"
-                  >
-                    <Rows3 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+          <div className="space-y-2">
+            <CriteriaSelector
+              selectedCriteria={judgingCriteria}
+              onCriteriaChange={setJudgingCriteria}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+      </div>
 
-              {/* Response panels - show only maximized panel or all panels */}
-              {maximizedModelId ? (
-                // Maximized view - single panel
-                <div className="flex-1 overflow-hidden">
-                  {responses.get(maximizedModelId) && (
-                    <ResponsePanel
-                      response={responses.get(maximizedModelId)!}
-                      isWinner={verdict?.winnerModelId === maximizedModelId}
-                      score={getScore(maximizedModelId)}
-                      viewMode={viewMode}
-                      isMaximized={true}
-                      onMinimize={() => setMaximizedModelId(null)}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0 relative">
+          
+          {/* Scrollable Area */}
+          <div className="flex-1 overflow-y-auto scroll-smooth">
+            <div className="max-w-5xl mx-auto p-4 md:p-6 pb-64 min-h-full flex flex-col">
+              
+              {/* Empty State */}
+              {!hasResponses && (
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in duration-700 slide-in-from-bottom-4 py-8">
+                  <div className="w-14 h-14 rounded-2xl bg-surface-2 flex items-center justify-center mb-4 shadow-glow">
+                    <LayoutGrid className="w-7 h-7 text-accent" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Consensus Committee</h2>
+                  <p className="text-foreground-muted max-w-md text-center mb-8 leading-relaxed text-sm">
+                    Submit a prompt to gather responses from your selected models, 
+                    then let the judge evaluate the results.
+                  </p>
+                  
+                  {/* Committee Display */}
+                  <div className="w-full mb-8">
+                    <CommitteeDisplay
+                      models={models}
+                      selectedCommittee={selectedCommittee}
+                      judgingMode={judgingMode}
+                      judgeModelId={judgeModelId}
+                      executiveJudgeIds={executiveJudgeIds}
                     />
+                  </div>
+                  
+                  {!showSettings && (
+                    <button
+                      onClick={() => setShowSettings(true)}
+                      className="text-xs font-medium text-accent hover:text-accent-glow transition-colors uppercase tracking-wider"
+                    >
+                      Configure models
+                    </button>
                   )}
                 </div>
-              ) : (
-                // Normal view - grid or stacked
-                <div
-                  className={clsx(
-                    'flex-1 gap-4 overflow-y-auto',
-                    viewMode === 'grid' && [
-                      'grid',
-                      responsesArray.length <= 2 && 'grid-cols-2',
-                      responsesArray.length === 3 && 'grid-cols-3',
-                      responsesArray.length >= 4 && 'grid-cols-2 lg:grid-cols-4',
-                    ],
-                    viewMode === 'stacked' && 'flex flex-col'
+              )}
+
+              {/* Responses Grid */}
+              {hasResponses && (
+                <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+                  {/* View Controls */}
+                  {!maximizedModelId && (
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-medium text-foreground-muted uppercase tracking-wider">
+                        Committee Responses
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleReset}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white bg-surface-2/50 hover:bg-surface-2 border border-white/5 hover:border-white/10 transition-all"
+                          title="New prompt"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          New
+                        </button>
+                        <div className="flex items-center gap-1 bg-surface-2/50 p-1 rounded-lg border border-white/5">
+                          <button
+                            onClick={() => setViewMode('grid')}
+                            className={clsx(
+                              'p-1.5 rounded-md transition-all',
+                              viewMode === 'grid'
+                                ? 'bg-surface-3 text-white shadow-sm'
+                                : 'text-foreground-muted hover:text-foreground'
+                            )}
+                            title="Grid view"
+                          >
+                            <LayoutGrid className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setViewMode('stacked')}
+                            className={clsx(
+                              'p-1.5 rounded-md transition-all',
+                              viewMode === 'stacked'
+                                ? 'bg-surface-3 text-white shadow-sm'
+                                : 'text-foreground-muted hover:text-foreground'
+                            )}
+                            title="Stacked view"
+                          >
+                            <Rows3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                >
-                  {responsesArray.map((response) => (
-                    <ResponsePanel
-                      key={response.modelId}
-                      response={response}
-                      isWinner={verdict?.winnerModelId === response.modelId}
-                      score={getScore(response.modelId)}
-                      viewMode={viewMode}
-                      onMaximize={() => setMaximizedModelId(response.modelId)}
-                    />
-                  ))}
+
+                  {/* Response Panels */}
+                  {maximizedModelId ? (
+                    <div className="flex-1 min-h-[600px]">
+                      {responses.get(maximizedModelId) && (
+                        <ResponsePanel
+                          response={responses.get(maximizedModelId)!}
+                          isWinner={verdict?.winnerModelId === maximizedModelId}
+                          score={getScore(maximizedModelId)}
+                          viewMode={viewMode}
+                          isMaximized={true}
+                          onMinimize={() => setMaximizedModelId(null)}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className={clsx(
+                        'gap-4',
+                        viewMode === 'grid' && [
+                          'grid',
+                          responsesArray.length <= 2 && 'grid-cols-1 md:grid-cols-2',
+                          responsesArray.length === 3 && 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+                          responsesArray.length >= 4 && 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4',
+                        ],
+                        viewMode === 'stacked' && 'flex flex-col max-w-3xl mx-auto w-full'
+                      )}
+                    >
+                      {responsesArray.map((response) => (
+                        <ResponsePanel
+                          key={response.modelId}
+                          response={response}
+                          isWinner={verdict?.winnerModelId === response.modelId}
+                          score={getScore(response.modelId)}
+                          viewMode={viewMode}
+                          onMaximize={() => setMaximizedModelId(response.modelId)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Verdict Section - Distinct from responses */}
+                  {!maximizedModelId && (
+                     <div className="mt-8 max-w-3xl mx-auto w-full mb-24">
+                       <VerdictPanel verdict={verdict} judgeModelName={judgeModelName} />
+                     </div>
+                  )}
                 </div>
               )}
-
-              {/* Verdict Panel - hide when maximized */}
-              {!maximizedModelId && (
-                <VerdictPanel verdict={verdict} judgeModelName={judgeModelName} />
-              )}
             </div>
-          )}
+          </div>
 
-          {/* Empty State */}
-          {!hasResponses && (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center text-gray-500 max-w-md">
-                <p className="text-lg mb-2">Submit a prompt to the committee</p>
-                <p className="text-sm">
-                  Your prompt will be sent to {selectedCommittee.length} models
-                  simultaneously, and {judgeModelName} will evaluate the responses.
-                </p>
-                {!showSettings && (
-                  <button
-                    onClick={() => setShowSettings(true)}
-                    className="mt-4 text-blue-400 hover:text-blue-300 text-sm"
-                  >
-                    Configure models →
-                  </button>
-                )}
-              </div>
+          {/* Prompt Input Area - Fixed at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-t from-background via-background/95 to-transparent pt-16 z-20">
+            <div className="max-w-3xl mx-auto">
+              <PromptInput
+                value={prompt}
+                onChange={setPrompt}
+                onSubmit={handleSubmit}
+                disabled={isSubmitting}
+                isLoading={isSubmitting}
+                minModels={MIN_COMMITTEE_MODELS}
+                selectedModelCount={selectedCommittee.length}
+              />
             </div>
-          )}
+          </div>
+          
         </div>
       </div>
     </main>

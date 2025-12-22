@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertCircle, Award, Loader2, ChevronDown, ChevronUp, Users, Gavel, UserCheck } from 'lucide-react';
+import { AlertCircle, Award, Loader2, ChevronDown, ChevronUp, Users, Gavel, UserCheck, Star } from 'lucide-react';
 import { Verdict, JudgingMode } from '@/lib/types';
+import { getModelById } from '@/lib/models';
+import { ProviderLogo } from './ProviderLogo';
 import clsx from 'clsx';
 
 interface VerdictPanelProps {
@@ -26,76 +28,111 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
   const modeInfo = judgingMode ? MODE_LABELS[judgingMode] : MODE_LABELS.judge;
   const ModeIcon = modeInfo.icon;
 
-  // Build judge description
   const judgeDescription = hasMultipleJudges
     ? `${votes.length} judges (${modeInfo.label})`
     : `Judged by ${judgeModelName}`;
 
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-white/5 bg-surface-2/30 p-8 flex flex-col items-center justify-center text-center animate-pulse">
+         <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4">
+           <Loader2 className="w-6 h-6 animate-spin text-accent" />
+         </div>
+         <h3 className="text-lg font-medium text-white mb-2">Evaluating Responses</h3>
+         <p className="text-sm text-gray-500 max-w-sm">
+           The judge is analyzing each response against the criteria to determine the winner.
+         </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-500/20 bg-red-900/10 p-6 flex items-start gap-4">
+        <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 text-red-400">
+           <AlertCircle className="w-5 h-5" />
+        </div>
+        <div>
+           <h3 className="text-lg font-medium text-red-400 mb-1">Judging Failed</h3>
+           <p className="text-sm text-red-300/80 mb-2">{error}</p>
+           <p className="text-xs text-red-400/50">You can try submitting again or change the judge model.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={clsx(
-        'rounded-xl border overflow-hidden',
-        error ? 'border-red-500/50 bg-red-900/10' : 'border-yellow-500/30 bg-yellow-900/10'
-      )}
-    >
+    <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-900/10 to-transparent overflow-hidden shadow-2xl shadow-amber-900/5">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-yellow-800/30 bg-yellow-900/20">
-        <Award className="w-5 h-5 text-yellow-400" />
-        <h3 className="font-semibold text-yellow-300">Committee Verdict</h3>
-        <div className="flex items-center gap-1 text-xs text-gray-500 ml-auto">
-          <ModeIcon className="w-3 h-3" />
-          <span>{judgeDescription}</span>
+      <div className="flex items-center gap-4 px-6 py-4 border-b border-amber-500/10 bg-amber-500/5">
+        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shadow-inner shadow-amber-500/20">
+           <Award className="w-6 h-6 text-amber-400 drop-shadow-md" />
+        </div>
+        <div>
+          <h3 className="font-bold text-amber-100 text-lg">Committee Verdict</h3>
+          <div className="flex items-center gap-1.5 text-xs text-amber-200/60 font-medium uppercase tracking-wide">
+            <ModeIcon className="w-3.5 h-3.5" />
+            <span>{judgeDescription}</span>
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        {isLoading ? (
-          <div className="flex items-center gap-3 text-gray-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Judge is evaluating responses...</span>
-          </div>
-        ) : error ? (
-          <div className="flex items-start gap-2 text-red-400">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium">Judging Failed</p>
-              <p className="text-sm text-red-400/80">{error}</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Individual responses are still visible above.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Winner announcement with vote count */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-gray-400">Winner:</span>
-              <span className="font-semibold text-green-400 text-lg">
-                {winnerModelName}
-              </span>
+      <div className="p-6">
+        <div className="space-y-6">
+            {/* Winner announcement */}
+            <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 pb-6 border-b border-white/5">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-surface-1 border border-white/10 flex items-center justify-center shadow-lg">
+                  <ProviderLogo provider={getModelById(verdict.winnerModelId)?.provider || 'Unknown'} size={32} />
+                </div>
+                <div>
+                   <span className="text-xs text-amber-200/50 uppercase tracking-widest font-bold mb-1 block">Winner</span>
+                   <span className="font-bold text-2xl md:text-3xl text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-amber-200">
+                     {winnerModelName}
+                   </span>
+                </div>
+              </div>
+              
               {hasMultipleJudges && voteCount && (
-                <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">
-                  {voteCount[verdict.winnerModelId] || 0}/{votes.length} votes
-                </span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5">
+                   <div className="flex -space-x-1">
+                     {[...Array(3)].map((_, i) => (
+                       <div key={i} className="w-4 h-4 rounded-full bg-amber-500/20 ring-1 ring-background" />
+                     ))}
+                   </div>
+                   <span className="text-sm font-medium text-amber-200">
+                      {voteCount[verdict.winnerModelId] || 0} / {votes.length} votes
+                   </span>
+                </div>
               )}
+            </div>
+
+            {/* Reasoning */}
+            <div className="prose prose-invert prose-sm max-w-none">
+              <h4 className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                 <Star className="w-4 h-4 text-amber-400" />
+                 {hasMultipleJudges ? 'Summary' : 'Reasoning'}
+              </h4>
+              <p className="text-gray-300 leading-relaxed bg-surface-2/30 p-4 rounded-xl border border-white/5">
+                {reasoning}
+              </p>
             </div>
 
             {/* Vote breakdown for multi-judge */}
             {hasMultipleJudges && voteCount && (
-              <div>
+              <div className="rounded-xl border border-white/5 bg-surface-2/20 overflow-hidden">
                 <button
                   onClick={() => setShowVotes(!showVotes)}
-                  className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-300"
+                  className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                 >
-                  {showVotes ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  <span>Vote breakdown</span>
+                  <span className="text-sm font-medium text-gray-300">Vote Breakdown</span>
+                  {showVotes ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                 </button>
                 
                 {showVotes && (
-                  <div className="mt-2 space-y-2">
-                    {/* Vote counts */}
-                    <div className="flex flex-wrap gap-2">
+                  <div className="p-4 pt-0 border-t border-white/5 mt-4">
+                    <div className="flex flex-wrap gap-2 mb-4">
                       {Object.entries(voteCount)
                         .sort(([, a], [, b]) => b - a)
                         .map(([modelId, count]) => {
@@ -105,33 +142,36 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
                             <div
                               key={modelId}
                               className={clsx(
-                                'px-2 py-1 rounded text-xs',
+                                'px-2 py-1 rounded text-xs font-medium',
                                 isWinner
-                                  ? 'bg-green-500/20 text-green-400'
-                                  : 'bg-gray-800/50 text-gray-400'
+                                  ? 'bg-green-500/20 text-green-400 border border-green-500/20'
+                                  : 'bg-surface-3 text-gray-400 border border-white/5'
                               )}
                             >
-                              {modelName}: {count} vote{count !== 1 ? 's' : ''}
+                              {modelName}: {count}
                             </div>
                           );
                         })}
                     </div>
 
-                    {/* Individual judge votes */}
-                    <div className="mt-3 space-y-2">
-                      <h5 className="text-xs font-medium text-gray-500">Individual Votes</h5>
+                    <div className="space-y-2">
                       {votes.map((vote, i) => {
                         const votedFor = vote.winnerModelId.split('/').pop() || vote.winnerModelId;
                         return (
                           <div
                             key={i}
-                            className="p-2 rounded bg-gray-800/30 text-xs"
+                            className="p-3 rounded-lg bg-surface-1/50 border border-white/5 text-xs"
                           >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-gray-400">{vote.judgeModelName}</span>
-                              <span className="text-yellow-400">→ {votedFor}</span>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded bg-surface-2 flex items-center justify-center">
+                                   <ProviderLogo provider={getModelById(vote.judgeModelId)?.provider || 'Unknown'} size={12} />
+                                </div>
+                                <span className="font-medium text-gray-300">{vote.judgeModelName}</span>
+                              </div>
+                              <span className="text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded">→ {votedFor}</span>
                             </div>
-                            <p className="text-gray-500 text-xs line-clamp-2">{vote.reasoning}</p>
+                            <p className="text-gray-500 line-clamp-2 italic">{vote.reasoning}</p>
                           </div>
                         );
                       })}
@@ -141,62 +181,59 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
               </div>
             )}
 
-            {/* Reasoning */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">
-                {hasMultipleJudges ? 'Summary' : 'Reasoning'}
-              </h4>
-              <p className="text-gray-300 text-sm leading-relaxed">{reasoning}</p>
-            </div>
-
             {/* Scores breakdown */}
             {scores && scores.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-gray-400 mb-2">Scores</h4>
-                <div className="grid gap-3">
+                <h4 className="text-sm font-medium text-gray-400 mb-3">Scorecard</h4>
+                <div className="grid sm:grid-cols-2 gap-3">
                   {scores
                     .sort((a, b) => b.score - a.score)
                     .map((score) => (
                       <div
                         key={score.modelId}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-gray-800/30"
+                        className="flex items-center gap-4 p-3 rounded-xl bg-surface-2/40 border border-white/5 hover:border-white/10 transition-colors"
                       >
-                        <div className="w-12 text-center">
-                          <span
-                            className={clsx(
-                              'font-bold text-lg',
-                              score.score >= 80
-                                ? 'text-green-400'
-                                : score.score >= 60
-                                ? 'text-yellow-400'
-                                : 'text-gray-400'
-                            )}
-                          >
-                            {score.score}
-                          </span>
+                        <div className="w-12 h-12 rounded-lg bg-surface-1 flex items-center justify-center border border-white/5">
+                          <ProviderLogo provider={getModelById(score.modelId)?.provider || 'Unknown'} size={24} />
                         </div>
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-300">
-                            {score.modelId.split('/').pop()}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="text-sm font-medium text-gray-200 truncate">
+                              {score.modelId.split('/').pop()}
+                            </div>
+                            <span
+                              className={clsx(
+                                'font-bold text-sm',
+                                score.score >= 80
+                                  ? 'text-green-400'
+                                  : score.score >= 60
+                                  ? 'text-yellow-400'
+                                  : 'text-gray-400'
+                              )}
+                            >
+                              {score.score}
+                            </span>
                           </div>
-                          {score.strengths.length > 0 && (
-                            <div className="text-xs text-green-400/80 mt-1">
-                              + {score.strengths.slice(0, 2).join(', ')}
-                            </div>
-                          )}
-                          {score.weaknesses.length > 0 && (
-                            <div className="text-xs text-red-400/80">
-                              − {score.weaknesses.slice(0, 2).join(', ')}
-                            </div>
-                          )}
+                          
+                          <div className="flex flex-wrap gap-1">
+                             {score.strengths.slice(0, 1).map((s, i) => (
+                               <span key={i} className="text-[10px] text-green-400/80 bg-green-900/10 px-1.5 py-0.5 rounded truncate max-w-full">
+                                 + {s}
+                               </span>
+                             ))}
+                             {score.weaknesses.slice(0, 1).map((w, i) => (
+                               <span key={i} className="text-[10px] text-red-400/80 bg-red-900/10 px-1.5 py-0.5 rounded truncate max-w-full">
+                                 - {w}
+                               </span>
+                             ))}
+                          </div>
                         </div>
                       </div>
                     ))}
                 </div>
               </div>
             )}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
