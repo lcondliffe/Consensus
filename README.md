@@ -32,7 +32,7 @@ cp .env.example .env
 # Start with Docker Compose
 docker-compose up -d
 
-# Open http://localhost:3000
+# Open http://localhost:3001
 ```
 
 ### Option 2: Local Development
@@ -48,7 +48,7 @@ cp .env.example .env
 # Start development server
 npm run dev
 
-# Open http://localhost:3000
+# Open http://localhost:3001
 ```
 
 ## Configuration
@@ -58,7 +58,7 @@ npm run dev
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `OPENROUTER_API_KEY` | Yes | Your OpenRouter API key |
-| `APP_URL` | No | Application URL (default: `http://localhost:3000`) |
+| `APP_URL` | No | Application URL (default: `http://localhost:3001`) |
 
 ### Default Models
 
