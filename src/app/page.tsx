@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Settings, X, LayoutGrid, Rows3 } from 'lucide-react';
+import { Settings, X, LayoutGrid, Rows3, RotateCcw } from 'lucide-react';
 import { ModelSelector } from '@/components/ModelSelector';
 import { ModelOption } from '@/components/ModelPicker';
 import { PromptInput } from '@/components/PromptInput';
@@ -88,6 +88,20 @@ export default function Home() {
     },
     [selectedCommittee]
   );
+
+  // Reset to start a new prompt
+  const handleReset = useCallback(() => {
+    // Abort any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setResponses(new Map());
+    setVerdict(null);
+    setPrompt('');
+    setIsSubmitting(false);
+    setMaximizedModelId(null);
+  }, []);
 
   // Submit prompt to committee
   const handleSubmit = useCallback(async () => {
@@ -463,31 +477,41 @@ export default function Home() {
                       <h2 className="text-sm font-medium text-foreground-muted uppercase tracking-wider">
                         Committee Responses
                       </h2>
-                      <div className="flex items-center gap-1 bg-surface-2/50 p-1 rounded-lg border border-white/5">
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setViewMode('grid')}
-                          className={clsx(
-                            'p-1.5 rounded-md transition-all',
-                            viewMode === 'grid'
-                              ? 'bg-surface-3 text-white shadow-sm'
-                              : 'text-foreground-muted hover:text-foreground'
-                          )}
-                          title="Grid view"
+                          onClick={handleReset}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white bg-surface-2/50 hover:bg-surface-2 border border-white/5 hover:border-white/10 transition-all"
+                          title="New prompt"
                         >
-                          <LayoutGrid className="w-3.5 h-3.5" />
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          New
                         </button>
-                        <button
-                          onClick={() => setViewMode('stacked')}
-                          className={clsx(
-                            'p-1.5 rounded-md transition-all',
-                            viewMode === 'stacked'
-                              ? 'bg-surface-3 text-white shadow-sm'
-                              : 'text-foreground-muted hover:text-foreground'
-                          )}
-                          title="Stacked view"
-                        >
-                          <Rows3 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1 bg-surface-2/50 p-1 rounded-lg border border-white/5">
+                          <button
+                            onClick={() => setViewMode('grid')}
+                            className={clsx(
+                              'p-1.5 rounded-md transition-all',
+                              viewMode === 'grid'
+                                ? 'bg-surface-3 text-white shadow-sm'
+                                : 'text-foreground-muted hover:text-foreground'
+                            )}
+                            title="Grid view"
+                          >
+                            <LayoutGrid className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setViewMode('stacked')}
+                            className={clsx(
+                              'p-1.5 rounded-md transition-all',
+                              viewMode === 'stacked'
+                                ? 'bg-surface-3 text-white shadow-sm'
+                                : 'text-foreground-muted hover:text-foreground'
+                            )}
+                            title="Stacked view"
+                          >
+                            <Rows3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
