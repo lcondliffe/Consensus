@@ -27,6 +27,8 @@ interface ModelPickerProps {
   renderExtraInfo?: (model: ModelOption) => React.ReactNode;
 }
 
+const MAIN_PROVIDERS = ['Anthropic', 'Google', 'OpenAI', 'xAI'];
+
 export function ModelPicker({
   models,
   selectedIds,
@@ -44,10 +46,13 @@ export function ModelPicker({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
 
-  // Get unique providers
-  const providers = useMemo(() => {
-    const providerSet = new Set(models.map((m) => m.provider));
-    return Array.from(providerSet).sort();
+  // Get provider options for dropdown
+  const providerOptions = useMemo(() => {
+    const allProviders = new Set(models.map((m) => m.provider));
+    const availableMain = MAIN_PROVIDERS.filter(p => allProviders.has(p)).sort();
+    const hasOthers = Array.from(allProviders).some(p => !MAIN_PROVIDERS.includes(p));
+    
+    return hasOthers ? [...availableMain, 'Other'] : availableMain;
   }, [models]);
 
   // Filter models
@@ -60,7 +65,10 @@ export function ModelPicker({
         model.provider.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesProvider =
-        selectedProvider === 'all' || model.provider === selectedProvider;
+        selectedProvider === 'all' ||
+        (selectedProvider === 'Other' 
+          ? !MAIN_PROVIDERS.includes(model.provider)
+          : model.provider === selectedProvider);
 
       return matchesSearch && matchesProvider;
     });
@@ -117,7 +125,7 @@ export function ModelPicker({
             )}
           >
             <option value="all">All Providers</option>
-            {providers.map((provider) => (
+            {providerOptions.map((provider) => (
               <option key={provider} value={provider}>
                 {provider}
               </option>
