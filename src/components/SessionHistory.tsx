@@ -30,7 +30,15 @@ export function SessionHistory({
   const handleDelete = async (e: React.MouseEvent, sessionId: Id<'sessions'>) => {
     e.stopPropagation();
     if (confirm('Delete this session?')) {
-      await removeSession({ sessionId });
+      try {
+        await removeSession({ sessionId });
+      } catch (error) {
+        alert(
+          `Failed to delete session: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
     }
   };
 

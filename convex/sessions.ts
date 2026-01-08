@@ -56,6 +56,14 @@ export const updateResponses = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error('Unauthorized');
+    }
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Not found or unauthorized');
+    }
     await ctx.db.patch(args.sessionId, {
       responses: args.responses,
       updatedAt: Date.now(),
@@ -98,10 +106,18 @@ export const updateVerdict = mutation({
           })
         )
       ),
-      voteCount: v.optional(v.any()),
+      voteCount: v.optional(v.record(v.string(), v.number())),
     }),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error('Unauthorized');
+    }
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Not found or unauthorized');
+    }
     await ctx.db.patch(args.sessionId, {
       verdict: args.verdict,
       isComplete: true,
@@ -143,6 +159,14 @@ export const remove = mutation({
     sessionId: v.id('sessions'),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error('Unauthorized');
+    }
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Not found or unauthorized');
+    }
     await ctx.db.delete(args.sessionId);
   },
 });
