@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Settings, X, LayoutGrid, Rows3, RotateCcw } from 'lucide-react';
+import { Settings, X, LayoutGrid, Rows3, RotateCcw, History } from 'lucide-react';
+import { UserButton, useUser } from '@clerk/nextjs';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { ModelSelector } from '@/components/ModelSelector';
 import { ModelOption } from '@/components/ModelPicker';
 import { PromptInput } from '@/components/PromptInput';
@@ -10,6 +14,7 @@ import { VerdictPanel } from '@/components/VerdictPanel';
 import { CriteriaSelector } from '@/components/CriteriaSelector';
 import { JudgingModeSelector } from '@/components/JudgingModeSelector';
 import { CommitteeDisplay } from '@/components/CommitteeDisplay';
+import { SessionHistory } from '@/components/SessionHistory';
 import { ModelResponse, Verdict, StreamChunk, JudgingMode } from '@/lib/types';
 import {
   DEFAULT_COMMITTEE_MODEL_IDS,
@@ -22,6 +27,19 @@ import clsx from 'clsx';
 const MIN_COMMITTEE_MODELS = 2;
 
 export default function Home() {
+  // Auth state
+  const { user } = useUser();
+  const userId = user?.id ?? null;
+
+  // Convex mutations
+  const createSession = useMutation(api.sessions.create);
+  const updateResponses = useMutation(api.sessions.updateResponses);
+  const updateVerdict = useMutation(api.sessions.updateVerdict);
+
+  // Session persistence state
+  const [currentSessionId, setCurrentSessionId] = useState<Id<'sessions'> | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+
   // Config state
   const [selectedCommittee, setSelectedCommittee] = useState<string[]>(
     DEFAULT_COMMITTEE_MODEL_IDS.filter((id) => id !== DEFAULT_JUDGE_MODEL.id)
@@ -101,7 +119,73 @@ export default function Home() {
     setPrompt('');
     setIsSubmitting(false);
     setMaximizedModelId(null);
+    setCurrentSessionId(null);
   }, []);
+
+  // Load a session from history
+  const sessions = useQuery(
+    api.sessions.listByUser,
+    userId ? { userId, limit: 30 } : 'skip'
+  );
+
+  const handleLoadSession = useCallback(
+    (sessionId: Id<'sessions'>) => {
+      const session = sessions?.find((s) => s._id === sessionId);
+      if (!session) return;
+
+      // Abort any in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+
+      // Load session state
+      setCurrentSessionId(sessionId);
+      setPrompt(session.prompt);
+      setSelectedCommittee(session.committeeModelIds);
+      setJudgeModelId(session.judgeModelId);
+      setJudgingMode(session.judgingMode as JudgingMode);
+      setJudgingCriteria(session.judgingCriteria);
+
+      // Reconstruct responses Map
+      const loadedResponses = new Map<string, ModelResponse>();
+      for (const r of session.responses) {
+        loadedResponses.set(r.modelId, {
+          modelId: r.modelId,
+          modelName: r.modelName,
+          content: r.content,
+          isStreaming: false,
+          isComplete: true,
+          error: r.error,
+          latencyMs: r.latencyMs,
+          startTime: null,
+        });
+      }
+      setResponses(loadedResponses);
+
+      // Load verdict if exists
+      if (session.verdict) {
+        setVerdict({
+          winnerModelId: session.verdict.winnerModelId,
+          winnerModelName: session.verdict.winnerModelName,
+          reasoning: session.verdict.reasoning,
+          scores: session.verdict.scores,
+          isLoading: false,
+          error: null,
+          judgingMode: session.verdict.judgingMode as JudgingMode | undefined,
+          votes: session.verdict.votes,
+          voteCount: session.verdict.voteCount as Record<string, number> | undefined,
+        });
+      } else {
+        setVerdict(null);
+      }
+
+      setIsSubmitting(false);
+      setMaximizedModelId(null);
+      setShowHistory(false);
+    },
+    [sessions]
+  );
 
   // Submit prompt to committee
   const handleSubmit = useCallback(async () => {
@@ -112,6 +196,25 @@ export default function Home() {
     // Reset state
     setIsSubmitting(true);
     setVerdict(null);
+    setCurrentSessionId(null);
+
+    // Create session in Convex if user is authenticated
+    let sessionId: Id<'sessions'> | null = null;
+    if (userId) {
+      try {
+        sessionId = await createSession({
+          userId,
+          prompt: prompt.trim(),
+          committeeModelIds: selectedCommittee,
+          judgeModelId,
+          judgingMode,
+          judgingCriteria,
+        });
+        setCurrentSessionId(sessionId);
+      } catch (err) {
+        console.error('Failed to create session:', err);
+      }
+    }
 
     // Initialize response state for each model
     const initialResponses = new Map<string, ModelResponse>();
@@ -211,8 +314,25 @@ export default function Home() {
         }
       }
 
+      // Save responses to Convex
+      if (sessionId) {
+        setResponses((finalResponses) => {
+          const responsesToSave = Array.from(finalResponses.values()).map((r) => ({
+            modelId: r.modelId,
+            modelName: r.modelName,
+            content: r.content,
+            error: r.error,
+            latencyMs: r.latencyMs,
+          }));
+          updateResponses({ sessionId: sessionId!, responses: responsesToSave }).catch((err) =>
+            console.error('Failed to save responses:', err)
+          );
+          return finalResponses;
+        });
+      }
+
       // FR-005: After streaming completes, send to judge
-      await triggerJudgeEvaluation();
+      await triggerJudgeEvaluation(sessionId);
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         // User cancelled
@@ -239,10 +359,10 @@ export default function Home() {
       abortControllerRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prompt, selectedCommittee, isSubmitting]);
+  }, [prompt, selectedCommittee, isSubmitting, userId, createSession, judgeModelId, judgingMode, judgingCriteria, updateResponses]);
 
   // FR-005, FR-006: Judge evaluation
-  const triggerJudgeEvaluation = useCallback(async () => {
+  const triggerJudgeEvaluation = useCallback(async (sessionId: Id<'sessions'> | null) => {
     // Get current responses from state via ref callback
     setResponses((currentResponses) => {
       // Build responses for judge
@@ -315,7 +435,7 @@ export default function Home() {
           return res.json();
         })
         .then((data) => {
-          setVerdict({
+          const verdictData = {
             winnerModelId: data.winnerModelId,
             winnerModelName: data.winnerModelName,
             reasoning: data.reasoning,
@@ -325,7 +445,24 @@ export default function Home() {
             judgingMode,
             votes: data.votes,
             voteCount: data.voteCount,
-          });
+          };
+          setVerdict(verdictData);
+
+          // Save verdict to Convex
+          if (sessionId) {
+            updateVerdict({
+              sessionId,
+              verdict: {
+                winnerModelId: data.winnerModelId,
+                winnerModelName: data.winnerModelName,
+                reasoning: data.reasoning,
+                scores: data.scores || [],
+                judgingMode,
+                votes: data.votes,
+                voteCount: data.voteCount,
+              },
+            }).catch((err) => console.error('Failed to save verdict:', err));
+          }
         })
         .catch((error) => {
           // FR-006: Handle judge failure gracefully
@@ -341,7 +478,7 @@ export default function Home() {
 
       return currentResponses;
     });
-  }, [prompt, judgeModelId, judgingMode, executiveJudgeIds, judgingCriteria]);
+  }, [prompt, judgeModelId, judgingMode, executiveJudgeIds, judgingCriteria, updateVerdict]);
 
   // Get score for a model from verdict
   const getScore = (modelId: string): number | undefined => {
@@ -357,29 +494,61 @@ export default function Home() {
     <main className="h-screen flex flex-col bg-background text-foreground overflow-hidden selection:bg-accent/20">
       {/* Header */}
       <header className="h-14 flex items-center justify-between px-4 md:px-6 border-b border-border bg-surface-1/50 backdrop-blur z-20">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-            <LayoutGrid className="w-5 h-5 text-accent" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold tracking-tight text-white">Consensus</h1>
-            <p className="text-[10px] text-foreground-muted font-medium uppercase tracking-wider">
-              Committee Evaluation
-            </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className={clsx(
+              'p-2 rounded-lg transition-all duration-200',
+              showHistory
+                ? 'bg-surface-2 text-white shadow-sm'
+                : 'text-foreground-muted hover:text-foreground hover:bg-surface-2/50'
+            )}
+            title="Session history"
+          >
+            <History className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+              <LayoutGrid className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <h1 className="text-sm font-semibold tracking-tight text-white">Consensus</h1>
+              <p className="text-[10px] text-foreground-muted font-medium uppercase tracking-wider">
+                Committee Evaluation
+              </p>
+            </div>
           </div>
         </div>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className={clsx(
-            'p-2 rounded-lg transition-all duration-200',
-            showSettings
-              ? 'bg-surface-2 text-white shadow-sm'
-              : 'text-foreground-muted hover:text-foreground hover:bg-surface-2/50'
-          )}
-        >
-          {showSettings ? <X className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={clsx(
+              'p-2 rounded-lg transition-all duration-200',
+              showSettings
+                ? 'bg-surface-2 text-white shadow-sm'
+                : 'text-foreground-muted hover:text-foreground hover:bg-surface-2/50'
+            )}
+          >
+            {showSettings ? <X className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+          </button>
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: 'w-8 h-8',
+              },
+            }}
+          />
+        </div>
       </header>
+
+      {/* Session History Sidebar */}
+      <SessionHistory
+        userId={userId}
+        currentSessionId={currentSessionId}
+        onLoadSession={handleLoadSession}
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+      />
 
       {/* Top Settings Panel */}
       <div
