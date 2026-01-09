@@ -173,7 +173,7 @@ export function ProviderLogo({ provider, className, size = 16 }: ProviderLogoPro
     className: clsx(className),
   };
 
-  const wrapperStyle = { color: color.primary };
+  const wrapperStyle = { color: color.primary, display: 'inline-flex' as const };
 
   switch (key) {
     case 'openai':
@@ -191,6 +191,6 @@ export function ProviderLogo({ provider, className, size = 16 }: ProviderLogoPro
     case 'xai':
       return <span style={wrapperStyle}><XAILogo {...logoProps} /></span>;
     default:
-      return <span style={{ color: PROVIDER_COLORS.default.primary }}><DefaultLogo {...logoProps} /></span>;
+      return <span style={{ color: PROVIDER_COLORS.default.primary, display: 'inline-flex' }}><DefaultLogo {...logoProps} /></span>;
   }
 }
