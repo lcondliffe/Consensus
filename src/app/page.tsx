@@ -95,6 +95,7 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const responsesRef = useRef<Map<string, ModelResponse>>(new Map());
 
   // FR-009: When judge changes, remove from committee if selected
   const handleJudgeChange = useCallback(
@@ -115,6 +116,7 @@ export default function Home() {
       abortControllerRef.current = null;
     }
     setResponses(new Map());
+    responsesRef.current = new Map();
     setVerdict(null);
     setPrompt('');
     setIsSubmitting(false);
@@ -125,7 +127,7 @@ export default function Home() {
   // Load a session from history
   const sessions = useQuery(
     api.sessions.listByUser,
-    userId ? { userId, limit: 30 } : 'skip'
+    userId ? { limit: 30 } : 'skip'
   );
 
   const handleLoadSession = useCallback(
@@ -162,6 +164,7 @@ export default function Home() {
         });
       }
       setResponses(loadedResponses);
+      responsesRef.current = loadedResponses;
 
       // Load verdict if exists
       if (session.verdict) {
@@ -203,7 +206,6 @@ export default function Home() {
     if (userId) {
       try {
         sessionId = await createSession({
-          userId,
           prompt: prompt.trim(),
           committeeModelIds: selectedCommittee,
           judgeModelId,
@@ -231,6 +233,7 @@ export default function Home() {
       });
     }
     setResponses(initialResponses);
+    responsesRef.current = initialResponses;
 
     // Create abort controller
     abortControllerRef.current = new AbortController();
@@ -276,38 +279,44 @@ export default function Home() {
             const chunk: StreamChunk = JSON.parse(trimmed.slice(6));
             const { modelId, content, done: isDone, error } = chunk;
 
-            setResponses((prev) => {
-              const updated = new Map(prev);
-              const existing = updated.get(modelId);
-              if (!existing) return prev;
+            // Update ref and state synchronously
+            const currentMap = responsesRef.current;
+            const existing = currentMap.get(modelId);
 
-              if (error) {
-                // FR-011: Handle individual model failures gracefully
-                updated.set(modelId, {
-                  ...existing,
-                  error,
-                  isStreaming: false,
-                  isComplete: true,
-                  latencyMs: Date.now() - (existing.startTime || Date.now()),
-                });
-                completedModels.add(modelId);
-              } else if (isDone) {
-                updated.set(modelId, {
-                  ...existing,
-                  isStreaming: false,
-                  isComplete: true,
-                  latencyMs: Date.now() - (existing.startTime || Date.now()),
-                });
-                completedModels.add(modelId);
-              } else if (content) {
-                updated.set(modelId, {
-                  ...existing,
-                  content: existing.content + content,
-                });
-              }
+            if (!existing) continue;
 
-              return updated;
-            });
+            let updatedResponse = { ...existing };
+
+            if (error) {
+              // FR-011: Handle individual model failures gracefully
+              updatedResponse = {
+                ...updatedResponse,
+                error,
+                isStreaming: false,
+                isComplete: true,
+                latencyMs: Date.now() - (existing.startTime || Date.now()),
+              };
+              completedModels.add(modelId);
+            } else if (isDone) {
+              updatedResponse = {
+                ...updatedResponse,
+                isStreaming: false,
+                isComplete: true,
+                latencyMs: Date.now() - (existing.startTime || Date.now()),
+              };
+              completedModels.add(modelId);
+            } else if (content) {
+              updatedResponse = {
+                ...updatedResponse,
+                content: updatedResponse.content + content,
+              };
+            }
+
+            const newMap = new Map(currentMap);
+            newMap.set(modelId, updatedResponse);
+            responsesRef.current = newMap;
+            setResponses(newMap);
+
           } catch {
             // Skip malformed JSON
           }
@@ -316,23 +325,21 @@ export default function Home() {
 
       // Save responses to Convex
       if (sessionId) {
-        setResponses((finalResponses) => {
-          const responsesToSave = Array.from(finalResponses.values()).map((r) => ({
-            modelId: r.modelId,
-            modelName: r.modelName,
-            content: r.content,
-            error: r.error,
-            latencyMs: r.latencyMs,
-          }));
-          updateResponses({ sessionId: sessionId!, responses: responsesToSave }).catch((err) =>
-            console.error('Failed to save responses:', err)
-          );
-          return finalResponses;
-        });
+        const finalResponses = responsesRef.current;
+        const responsesToSave = Array.from(finalResponses.values()).map((r) => ({
+          modelId: r.modelId,
+          modelName: r.modelName,
+          content: r.content,
+          error: r.error,
+          latencyMs: r.latencyMs,
+        }));
+        updateResponses({ sessionId: sessionId!, responses: responsesToSave }).catch((err) =>
+          console.error('Failed to save responses:', err)
+        );
       }
 
       // FR-005: After streaming completes, send to judge
-      await triggerJudgeEvaluation(sessionId);
+      await triggerJudgeEvaluation(sessionId, responsesRef.current);
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         // User cancelled
@@ -340,20 +347,21 @@ export default function Home() {
       }
       console.error('Committee error:', error);
       // Mark all streaming responses as errored
-      setResponses((prev) => {
-        const updated = new Map(prev);
-        Array.from(updated.entries()).forEach(([modelId, response]) => {
-          if (response.isStreaming) {
-            updated.set(modelId, {
-              ...response,
-              error: (error as Error).message || 'Request failed',
-              isStreaming: false,
-              isComplete: true,
-            });
-          }
-        });
-        return updated;
+      const currentMap = responsesRef.current;
+      const newMap = new Map(currentMap);
+      
+      Array.from(newMap.entries()).forEach(([modelId, response]) => {
+        if (response.isStreaming) {
+          newMap.set(modelId, {
+            ...response,
+            error: (error as Error).message || 'Request failed',
+            isStreaming: false,
+            isComplete: true,
+          });
+        }
       });
+      responsesRef.current = newMap;
+      setResponses(newMap);
     } finally {
       setIsSubmitting(false);
       abortControllerRef.current = null;
@@ -362,59 +370,58 @@ export default function Home() {
   }, [prompt, selectedCommittee, isSubmitting, userId, createSession, judgeModelId, judgingMode, judgingCriteria, updateResponses]);
 
   // FR-005, FR-006: Judge evaluation
-  const triggerJudgeEvaluation = useCallback(async (sessionId: Id<'sessions'> | null) => {
-    // Get current responses from state via ref callback
-    setResponses((currentResponses) => {
-      // Build responses for judge
-      const completedResponses = Array.from(currentResponses.values())
-        .filter((r) => r.isComplete && !r.error && r.content.trim())
-        .map((r) => ({
-          modelId: r.modelId,
-          modelName: r.modelName,
-          content: r.content,
-        }));
+  const triggerJudgeEvaluation = useCallback(async (sessionId: Id<'sessions'> | null, currentResponses: Map<string, ModelResponse>) => {
+    // Build responses for judge
+    const completedResponses = Array.from(currentResponses.values())
+      .filter((r) => r.isComplete && !r.error && r.content.trim())
+      .map((r) => ({
+        modelId: r.modelId,
+        modelName: r.modelName,
+        content: r.content,
+      }));
 
-      if (completedResponses.length < 2) {
-        setVerdict({
-          winnerModelId: '',
-          winnerModelName: '',
-          reasoning: 'Not enough successful responses to evaluate.',
-          scores: [],
-          isLoading: false,
-          error: 'Fewer than 2 models responded successfully.',
-        });
-        return currentResponses;
-      }
-
-      // Build judge model IDs based on mode
-      let judgeModelIds: string[] = [];
-      let judgeModelNames: string[] = [];
-
-      if (judgingMode === 'judge') {
-        judgeModelIds = [judgeModelId];
-        judgeModelNames = [getModelDisplayName(judgeModelId)];
-      } else if (judgingMode === 'committee') {
-        // All responding models vote
-        judgeModelIds = completedResponses.map((r) => r.modelId);
-        judgeModelNames = completedResponses.map((r) => r.modelName);
-      } else if (judgingMode === 'executive') {
-        judgeModelIds = executiveJudgeIds;
-        judgeModelNames = executiveJudgeIds.map((id) => getModelDisplayName(id));
-      }
-
-      // Show loading state
+    if (completedResponses.length < 2) {
       setVerdict({
         winnerModelId: '',
         winnerModelName: '',
-        reasoning: '',
+        reasoning: 'Not enough successful responses to evaluate.',
         scores: [],
-        isLoading: true,
-        error: null,
-        judgingMode,
+        isLoading: false,
+        error: 'Fewer than 2 models responded successfully.',
       });
+      return;
+    }
 
+    // Build judge model IDs based on mode
+    let judgeModelIds: string[] = [];
+    let judgeModelNames: string[] = [];
+
+    if (judgingMode === 'judge') {
+      judgeModelIds = [judgeModelId];
+      judgeModelNames = [getModelDisplayName(judgeModelId)];
+    } else if (judgingMode === 'committee') {
+      // All responding models vote
+      judgeModelIds = completedResponses.map((r) => r.modelId);
+      judgeModelNames = completedResponses.map((r) => r.modelName);
+    } else if (judgingMode === 'executive') {
+      judgeModelIds = executiveJudgeIds;
+      judgeModelNames = executiveJudgeIds.map((id) => getModelDisplayName(id));
+    }
+
+    // Show loading state
+    setVerdict({
+      winnerModelId: '',
+      winnerModelName: '',
+      reasoning: '',
+      scores: [],
+      isLoading: true,
+      error: null,
+      judgingMode,
+    });
+
+    try {
       // Make the judge request
-      fetch('/api/judge', {
+      const res = await fetch('/api/judge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -426,58 +433,53 @@ export default function Home() {
           judgingMode,
           criteria: judgingCriteria,
         }),
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            throw new Error(errorData.error || `HTTP ${res.status}`);
-          }
-          return res.json();
-        })
-        .then((data) => {
-          const verdictData = {
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const verdictData = {
+        winnerModelId: data.winnerModelId,
+        winnerModelName: data.winnerModelName,
+        reasoning: data.reasoning,
+        scores: data.scores || [],
+        isLoading: false,
+        error: null,
+        judgingMode,
+        votes: data.votes,
+        voteCount: data.voteCount,
+      };
+      setVerdict(verdictData);
+
+      // Save verdict to Convex
+      if (sessionId) {
+        updateVerdict({
+          sessionId,
+          verdict: {
             winnerModelId: data.winnerModelId,
             winnerModelName: data.winnerModelName,
             reasoning: data.reasoning,
             scores: data.scores || [],
-            isLoading: false,
-            error: null,
             judgingMode,
             votes: data.votes,
             voteCount: data.voteCount,
-          };
-          setVerdict(verdictData);
-
-          // Save verdict to Convex
-          if (sessionId) {
-            updateVerdict({
-              sessionId,
-              verdict: {
-                winnerModelId: data.winnerModelId,
-                winnerModelName: data.winnerModelName,
-                reasoning: data.reasoning,
-                scores: data.scores || [],
-                judgingMode,
-                votes: data.votes,
-                voteCount: data.voteCount,
-              },
-            }).catch((err) => console.error('Failed to save verdict:', err));
-          }
-        })
-        .catch((error) => {
-          // FR-006: Handle judge failure gracefully
-          setVerdict({
-            winnerModelId: '',
-            winnerModelName: '',
-            reasoning: '',
-            scores: [],
-            isLoading: false,
-            error: (error as Error).message || 'Judge evaluation failed',
-          });
-        });
-
-      return currentResponses;
-    });
+          },
+        }).catch((err) => console.error('Failed to save verdict:', err));
+      }
+    } catch (error) {
+      // FR-006: Handle judge failure gracefully
+      setVerdict({
+        winnerModelId: '',
+        winnerModelName: '',
+        reasoning: '',
+        scores: [],
+        isLoading: false,
+        error: (error as Error).message || 'Judge evaluation failed',
+      });
+    }
   }, [prompt, judgeModelId, judgingMode, executiveJudgeIds, judgingCriteria, updateVerdict]);
 
   // Get score for a model from verdict

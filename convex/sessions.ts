@@ -4,7 +4,6 @@ import { mutation, query } from './_generated/server';
 // Create a new session when user submits a prompt
 export const create = mutation({
   args: {
-    userId: v.string(),
     prompt: v.string(),
     committeeModelIds: v.array(v.string()),
     judgeModelId: v.string(),
@@ -23,9 +22,13 @@ export const create = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error('Unauthorized');
+    }
     const now = Date.now();
     const sessionId = await ctx.db.insert('sessions', {
-      userId: args.userId,
+      userId: identity.subject,
       prompt: args.prompt,
       responses: [],
       verdict: null,
@@ -129,14 +132,17 @@ export const updateVerdict = mutation({
 // List sessions for a user (most recent first)
 export const listByUser = query({
   args: {
-    userId: v.string(),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
     const limit = args.limit ?? 50;
     const sessions = await ctx.db
       .query('sessions')
-      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .withIndex('by_user', (q) => q.eq('userId', identity.subject))
       .order('desc')
       .take(limit);
     return sessions;

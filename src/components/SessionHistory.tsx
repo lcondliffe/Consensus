@@ -23,7 +23,7 @@ export function SessionHistory({
 }: SessionHistoryProps) {
   const sessions = useQuery(
     api.sessions.listByUser,
-    userId ? { userId, limit: 30 } : 'skip'
+    userId ? { limit: 100 } : 'skip'
   );
   const removeSession = useMutation(api.sessions.remove);
 
@@ -66,13 +66,14 @@ export function SessionHistory({
     return prompt.slice(0, maxLength).trim() + '...';
   };
 
-  if (!isOpen) return null;
-
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+        className={clsx(
+          "fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity duration-300",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
         onClick={onClose}
       />
 
@@ -114,11 +115,11 @@ export function SessionHistory({
           ) : (
             <div className="p-2 space-y-1">
               {sessions.map((session) => (
-                <button
+                <div
                   key={session._id}
                   onClick={() => onLoadSession(session._id)}
                   className={clsx(
-                    'w-full p-3 rounded-lg text-left transition-all duration-150',
+                    'w-full p-3 rounded-lg text-left transition-all duration-150 cursor-pointer',
                     'hover:bg-surface-2/80 group',
                     currentSessionId === session._id
                       ? 'bg-accent/10 border border-accent/30'
@@ -168,7 +169,7 @@ export function SessionHistory({
                       </span>
                     )}
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
