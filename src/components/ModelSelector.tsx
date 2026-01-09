@@ -2,6 +2,7 @@
 
 import { Users, X } from 'lucide-react';
 import { ModelPicker, ModelOption } from './ModelPicker';
+import { ProviderLogo } from './ProviderLogo';
 
 interface ModelSelectorProps {
   models: ModelOption[];
@@ -30,7 +31,19 @@ export function ModelSelector({
     onCommitteeChange(selectedCommittee.filter((id) => id !== modelId));
   };
 
-  const selectedModelObjects = models.filter((m) => selectedCommittee.includes(m.id));
+  // Build selected model objects, creating fallback entries for models not in the API response
+  const selectedModelObjects = selectedCommittee.map((id) => {
+    const found = models.find((m) => m.id === id);
+    if (found) return found;
+    // Fallback: extract provider and name from the ID
+    const [providerSlug, ...rest] = id.split('/');
+    const modelName = rest.join('/') || id;
+    return {
+      id,
+      name: modelName,
+      provider: providerSlug || 'Unknown',
+    };
+  });
 
   return (
     <div className="space-y-4">
@@ -60,6 +73,7 @@ export function ModelSelector({
                     }
                   `}
                 >
+                  <ProviderLogo provider={model.provider} size={14} />
                   <span className="truncate max-w-[150px]">{model.name}</span>
                   {isJudge && <span className="text-[10px] opacity-70 border border-yellow-500/30 px-1 rounded">Judge</span>}
                   

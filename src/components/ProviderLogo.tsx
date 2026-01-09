@@ -21,7 +21,7 @@ export const PROVIDER_COLORS: Record<string, { primary: string; glow: string }> 
 export function getProviderKey(provider: string): string {
   const p = provider.toLowerCase();
   if (p.includes('openai') || p.includes('gpt')) return 'openai';
-  if (p.includes('anthropic') || p.includes('claude')) return 'anthropic';
+  if (p.includes('anthropic') || p.includes('claude') || p.includes('haiku') || p.includes('sonnet') || p.includes('opus')) return 'anthropic';
   if (p.includes('google') || p.includes('gemini')) return 'google';
   if (p.includes('meta') || p.includes('llama')) return 'meta';
   if (p.includes('mistral')) return 'mistral';

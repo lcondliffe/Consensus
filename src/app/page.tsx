@@ -698,6 +698,7 @@ export default function Home() {
                           viewMode={viewMode}
                           isMaximized={true}
                           onMinimize={() => setMaximizedModelId(null)}
+                          provider={models.find((m) => m.id === maximizedModelId)?.provider}
                         />
                       )}
                     </div>
@@ -722,6 +723,7 @@ export default function Home() {
                           score={getScore(response.modelId)}
                           viewMode={viewMode}
                           onMaximize={() => setMaximizedModelId(response.modelId)}
+                          provider={models.find((m) => m.id === response.modelId)?.provider}
                         />
                       ))}
                     </div>

@@ -18,6 +18,7 @@ interface ResponsePanelProps {
   isMaximized?: boolean;
   onMaximize?: () => void;
   onMinimize?: () => void;
+  provider?: string;
 }
 
 export function ResponsePanel({ 
@@ -28,10 +29,11 @@ export function ResponsePanel({
   isMaximized = false,
   onMaximize,
   onMinimize,
+  provider: providerProp,
 }: ResponsePanelProps) {
   const { modelName, content, isStreaming, isComplete, error, latencyMs, modelId } = response;
   const [copied, setCopied] = useState(false);
-  const provider = getModelById(modelId)?.provider || 'Unknown';
+  const provider = providerProp || getModelById(modelId)?.provider || 'Unknown';
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(content);
