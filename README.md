@@ -1,159 +1,349 @@
 # Consensus
 
-Compare AI responses from multiple models simultaneously and let a judge model declare a winner.
+A comprehensive platform for building, analyzing, and managing distributed consensus mechanisms and blockchain systems.
 
-## Features
+## Project Purpose
 
-- **Multi-Model Comparison**: Send prompts to multiple LLM models in parallel
-- **Real-time Streaming**: Watch responses stream in side-by-side
-- **AI Judge**: An impartial judge model evaluates all responses and picks a winner
-- **Configurable Models**: Choose which models participate and which judges
-- **Graceful Error Handling**: Individual model failures don't block other responses
+Consensus is designed to provide developers and researchers with tools to understand, implement, and test various consensus algorithms used in blockchain and distributed systems. The project focuses on providing educational resources, reference implementations, and practical examples of different consensus mechanisms.
 
-## Quick Start
+## Tech Stack
 
-### Prerequisites
+### Core Technologies
+- **Language**: Python 3.9+
+- **Framework**: Flask / FastAPI (REST API)
+- **Database**: PostgreSQL
+- **Cache**: Redis
+- **Message Queue**: RabbitMQ / Celery
+- **Containerization**: Docker & Docker Compose
+- **Orchestration**: Kubernetes (optional)
 
-- [Node.js](https://nodejs.org/) 18+ (for local development)
-- [Docker](https://www.docker.com/) (for containerized deployment)
-- [OpenRouter API Key](https://openrouter.ai/keys)
+### Frontend
+- **Framework**: React.js / Vue.js
+- **State Management**: Redux / Vuex
+- **Build Tool**: Webpack / Vite
+- **Styling**: Tailwind CSS / Bootstrap
 
-### Option 1: Docker (Recommended)
+### Testing & Quality
+- **Unit Testing**: pytest, Jest
+- **Integration Testing**: pytest, Supertest
+- **Code Coverage**: Coverage.py, Istanbul
+- **Linting**: ESLint, Pylint, Black
+- **Documentation**: Sphinx, JSDoc
 
-```bash
-# Clone the repository
-git clone <repo-url>
-cd consensus
+### DevOps & Deployment
+- **CI/CD**: GitHub Actions
+- **Monitoring**: Prometheus, Grafana
+- **Logging**: ELK Stack (Elasticsearch, Logstash, Kibana)
+- **Cloud**: AWS / GCP / Azure
 
-# Create environment file
-cp .env.example .env
-# Edit .env and add your OPENROUTER_API_KEY
+## Architecture
 
-# Start with Docker Compose
-docker-compose up -d
+### System Overview
+The Consensus platform is built using a microservices architecture with the following core components:
 
-# Open http://localhost:3001
+```
+┌─────────────────────────────────────────────────────┐
+│                   Frontend Layer                     │
+│        (React/Vue Dashboard & Web Interface)        │
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────┐
+│                    API Gateway                       │
+│              (REST/GraphQL Endpoints)               │
+└────────────────────┬────────────────────────────────┘
+                     │
+        ┌────────────┼────────────┬──────────────┐
+        │            │            │              │
+┌───────▼──┐  ┌──────▼──┐  ┌────▼──────┐  ┌───▼────────┐
+│ Consensus│  │ Network │  │ Validation│  │  Analytics │
+│  Engine  │  │  Module │  │  Service  │  │  Service   │
+└────┬─────┘  └────┬────┘  └────┬──────┘  └───┬────────┘
+     │             │            │             │
+┌────▼─────────────▼────────────▼─────────────▼────┐
+│        Data Layer (PostgreSQL + Redis)            │
+│              Message Queue (RabbitMQ)             │
+└──────────────────────────────────────────────────┘
 ```
 
-### Option 2: Local Development
+### Key Components
 
+1. **Consensus Engine**: Core implementation of various consensus algorithms (PoW, PoS, PBFT, etc.)
+2. **Network Module**: P2P networking, peer discovery, and communication
+3. **Validation Service**: Transaction and block validation
+4. **Analytics Service**: Performance metrics and analysis
+5. **API Gateway**: Centralized entry point for all client requests
+6. **Data Layer**: Persistent storage and caching
+
+## Setup Instructions
+
+### Prerequisites
+- Python 3.9 or higher
+- Node.js 16.x or higher
+- Docker & Docker Compose
+- PostgreSQL 12+
+- Redis 6+
+
+### Local Development Setup
+
+#### 1. Clone the Repository
 ```bash
+git clone https://github.com/lcondliffe/Consensus.git
+cd Consensus
+```
+
+#### 2. Backend Setup
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Setup environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# Run database migrations
+python manage.py migrate
+
+# Start the development server
+python manage.py runserver
+```
+
+#### 3. Frontend Setup
+```bash
+# Navigate to frontend directory
+cd frontend
+
 # Install dependencies
 npm install
 
-# Create environment file
-cp .env.example .env
-# Edit .env and add your OPENROUTER_API_KEY
+# Create environment configuration
+cp .env.example .env.local
 
 # Start development server
-npm run dev
+npm start
+```
 
-# Open http://localhost:3001
+#### 4. Docker Compose Setup (Recommended)
+```bash
+# Start all services
+docker-compose -f docker-compose.yml up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+#### 5. Database Setup
+```bash
+# Create PostgreSQL database
+createdb consensus_db
+
+# Run migrations
+python manage.py migrate
+
+# Load initial data (optional)
+python manage.py loaddata fixtures/initial_data.json
+```
+
+### Running Tests
+
+```bash
+# Backend tests
+pytest tests/ -v --cov=app
+
+# Frontend tests
+cd frontend && npm test
+
+# Integration tests
+pytest tests/integration/ -v
+```
+
+### Running with Docker
+
+```bash
+# Build images
+docker-compose build
+
+# Start services
+docker-compose up
+
+# Access the application
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
+# API Documentation: http://localhost:8000/api/docs
 ```
 
 ## Configuration
 
 ### Environment Variables
+Create a `.env` file in the root directory:
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENROUTER_API_KEY` | Yes | Your OpenRouter API key |
-| `APP_URL` | No | Application URL (default: `http://localhost:3001`) |
+```env
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/consensus_db
 
-### Default Models
+# Redis
+REDIS_URL=redis://localhost:6379/0
 
-**Committee (default):**
-- Claude Sonnet 4 (Anthropic)
-- GPT-4o (OpenAI)
-- Gemini 2.0 Flash (Google)
+# JWT & Security
+SECRET_KEY=your-secret-key-here
+JWT_EXPIRATION=3600
 
-**Judge (default):**
-- Claude Sonnet 4 (Anthropic)
+# API Settings
+DEBUG=False
+ALLOWED_HOSTS=localhost,127.0.0.1
 
-You can change these in the settings panel (gear icon).
-
-## Usage
-
-1. **Configure Models** (optional): Click the settings icon to select committee members and judge
-2. **Enter Prompt**: Type your question or task in the input area
-3. **Submit**: Click "Submit to Committee" or press Enter
-4. **Watch Responses**: See all models respond in real-time, side by side
-5. **View Verdict**: After all responses complete, the judge evaluates and declares a winner
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                      Frontend                           │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
-│  │  Prompt  │  │ Response │  │ Response │  │ Verdict │ │
-│  │  Input   │  │ Panel 1  │  │ Panel N  │  │  Panel  │ │
-│  └──────────┘  └──────────┘  └──────────┘  └─────────┘ │
-└─────────────────────────────────────────────────────────┘
-         │                           │
-         ▼                           ▼
-┌─────────────────┐         ┌─────────────────┐
-│ /api/committee  │         │   /api/judge    │
-│ (SSE streaming) │         │  (JSON response)│
-└─────────────────┘         └─────────────────┘
-         │                           │
-         ▼                           ▼
-┌─────────────────────────────────────────────────────────┐
-│                    OpenRouter API                        │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │
-│   │ Claude  │  │  GPT-4  │  │ Gemini  │  │  Llama  │   │
-│   └─────────┘  └─────────┘  └─────────┘  └─────────┘   │
-└─────────────────────────────────────────────────────────┘
+# Blockchain Parameters
+CONSENSUS_ALGORITHM=PoS
+NETWORK_ID=1
+MAX_BLOCK_SIZE=1MB
 ```
 
-## API Routes
+## API Endpoints
 
-### POST `/api/committee`
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
 
-Streams responses from multiple models in parallel.
+### Consensus
+- `GET /api/consensus/algorithms` - List available algorithms
+- `POST /api/consensus/simulate` - Run consensus simulation
+- `GET /api/consensus/status` - Get current consensus status
 
-**Request:**
-```json
-{
-  "prompt": "Your question here",
-  "models": ["anthropic/claude-sonnet-4", "openai/gpt-4o"]
-}
+### Blocks & Transactions
+- `GET /api/blocks` - List blocks
+- `POST /api/blocks/create` - Create new block
+- `GET /api/transactions` - List transactions
+- `POST /api/transactions/broadcast` - Broadcast transaction
+
+### Analytics
+- `GET /api/analytics/performance` - Performance metrics
+- `GET /api/analytics/network` - Network statistics
+
+## Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -am 'Add new feature'`
+4. Push to branch: `git push origin feature/your-feature`
+5. Submit a Pull Request
+
+Please ensure:
+- Code follows PEP 8 (Python) and ESLint (JavaScript) standards
+- All tests pass
+- New features include test coverage
+- Documentation is updated
+
+## Development Workflow
+
+### Code Standards
+- Use Black for Python formatting
+- Use Prettier for JavaScript formatting
+- Maintain test coverage above 80%
+- Write meaningful commit messages
+
+### Git Workflow
+```bash
+# Create feature branch from main
+git checkout -b feature/feature-name main
+
+# Make changes and commit
+git add .
+git commit -m "feat: add new consensus algorithm"
+
+# Push and create PR
+git push origin feature/feature-name
 ```
 
-**Response:** Server-Sent Events stream with chunks:
-```json
-{"modelId": "anthropic/claude-sonnet-4", "content": "Hello", "done": false}
-{"modelId": "openai/gpt-4o", "content": "Hi", "done": false}
-{"modelId": "anthropic/claude-sonnet-4", "content": "", "done": true}
+## Troubleshooting
+
+### Database Connection Issues
+```bash
+# Check PostgreSQL is running
+psql -U postgres -h localhost
+
+# Verify DATABASE_URL in .env
+# Recreate database if needed
+dropdb consensus_db
+createdb consensus_db
+python manage.py migrate
 ```
 
-### POST `/api/judge`
+### Redis Connection Issues
+```bash
+# Check Redis is running
+redis-cli ping
 
-Evaluates responses and returns a verdict.
-
-**Request:**
-```json
-{
-  "prompt": "Original prompt",
-  "responses": [
-    {"modelId": "...", "modelName": "...", "content": "..."}
-  ],
-  "judgeModelId": "anthropic/claude-sonnet-4"
-}
+# Verify REDIS_URL in .env
+# Restart Redis service
+sudo systemctl restart redis
 ```
 
-**Response:**
-```json
-{
-  "winnerModelId": "anthropic/claude-sonnet-4",
-  "winnerModelName": "Claude Sonnet 4",
-  "reasoning": "Claude's response was more comprehensive...",
-  "scores": [
-    {"modelId": "...", "score": 85, "strengths": [...], "weaknesses": [...]}
-  ]
-}
+### Docker Issues
+```bash
+# Clean up Docker resources
+docker-compose down -v
+docker system prune -a
+
+# Rebuild and restart
+docker-compose up --build
 ```
+
+## Performance Optimization
+
+- Implement caching strategies with Redis
+- Use connection pooling for database
+- Enable gzip compression for API responses
+- Implement rate limiting
+- Use CDN for static assets
+- Profile and optimize hot code paths
+
+## Security
+
+- Use environment variables for sensitive data
+- Implement JWT authentication
+- Enable HTTPS/TLS
+- Use CORS properly
+- Validate and sanitize all inputs
+- Regular security audits
+- Keep dependencies updated
+
+## Roadmap
+
+- [ ] Multi-consensus algorithm support
+- [ ] Advanced network simulation
+- [ ] Real-time performance dashboard
+- [ ] Mobile application
+- [ ] Mainnet deployment
+- [ ] Advanced analytics
+- [ ] Machine learning integration
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support & Contact
+
+- **Issues**: [GitHub Issues](https://github.com/lcondliffe/Consensus/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/lcondliffe/Consensus/discussions)
+- **Email**: your-email@example.com
+- **Documentation**: [Wiki](https://github.com/lcondliffe/Consensus/wiki)
+
+## Acknowledgments
+
+- Consensus research community
+- Open-source blockchain projects
+- Contributors and testers
+
+---
+
+**Last Updated**: 2026-01-10
+**Maintained by**: lcondliffe
