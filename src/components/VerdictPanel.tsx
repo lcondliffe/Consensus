@@ -84,7 +84,7 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
             <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 pb-6 border-b border-white/5">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-surface-1 border border-white/10 flex items-center justify-center shadow-lg">
-                  <ProviderLogo provider={getModelById(verdict.winnerModelId)?.provider || 'Unknown'} size={32} />
+                  <ProviderLogo provider={getModelById(verdict.winnerModelId)?.provider || verdict.winnerModelId} size={32} />
                 </div>
                 <div>
                    <span className="text-xs text-amber-200/50 uppercase tracking-widest font-bold mb-1 block">Winner</span>
@@ -165,7 +165,7 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
                             <div className="flex items-center justify-between mb-1.5">
                               <div className="flex items-center gap-2">
                                 <div className="w-5 h-5 rounded bg-surface-2 flex items-center justify-center">
-                                   <ProviderLogo provider={getModelById(vote.judgeModelId)?.provider || 'Unknown'} size={12} />
+                                   <ProviderLogo provider={getModelById(vote.judgeModelId)?.provider || vote.judgeModelId} size={12} />
                                 </div>
                                 <span className="font-medium text-gray-300">{vote.judgeModelName}</span>
                               </div>
@@ -194,7 +194,7 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
                         className="flex items-center gap-4 p-3 rounded-xl bg-surface-2/40 border border-white/5 hover:border-white/10 transition-colors"
                       >
                         <div className="w-12 h-12 rounded-lg bg-surface-1 flex items-center justify-center border border-white/5">
-                          <ProviderLogo provider={getModelById(score.modelId)?.provider || 'Unknown'} size={24} />
+                          <ProviderLogo provider={getModelById(score.modelId)?.provider || score.modelId} size={24} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
