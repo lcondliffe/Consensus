@@ -354,7 +354,13 @@ Provide your evaluation as a JSON object with this exact structure:
   ]
 }
 
-The score should be 0-100, weighted by the criteria importance. Be specific - reference actual content from the responses and how it relates to the evaluation criteria.`;
+The score should be 0-100, weighted by the criteria importance. Be specific - reference actual content from the responses and how it relates to the evaluation criteria.
+
+Scoring penalties - apply these strictly:
+- Responses that admit knowledge cutoff limitations preventing them from answering (e.g., "I only have knowledge up to 2023") should score 30 or below - they effectively didn't answer the question
+- Responses that deflect or refuse to engage with the topic should score very low (20 or below)
+- Responses that provide outdated information without acknowledging limitations should be penalized
+- A response that says "I can't answer this" is not a valid answer and should never win`;
 }
 
 function parseJudgeResponse(
@@ -474,7 +480,14 @@ Guidelines:
 - Include attributions for ALL models, explaining what each uniquely contributed
 - keyPoints should highlight the main insights with credit to source models
 - Scores (0-100) reflect how much each model contributed to the final synthesis
-- Be specific about what each model added - reference actual content from their responses`;
+- Be specific about what each model added - reference actual content from their responses
+
+Scoring penalties - apply these when scoring responses:
+- Responses that admit knowledge cutoff limitations preventing them from answering (e.g., "I only have knowledge up to 2023") should score 30 or below - they effectively didn't answer the question
+- Responses that deflect or refuse to engage with the topic should score very low (20 or below)
+- Responses that provide outdated information without acknowledging limitations should be penalized
+- Models that could have used tools/search to get current information but didn't should be marked down
+- A response that says "I can't answer this" contributes almost nothing to the synthesis and should score accordingly`;
 }
 
 interface ParsedConsensusData {
