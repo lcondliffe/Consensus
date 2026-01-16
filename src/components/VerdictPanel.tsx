@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertCircle, Award, Loader2, ChevronDown, ChevronUp, Users, Gavel, UserCheck, Star } from 'lucide-react';
+import { AlertCircle, Award, Loader2, ChevronDown, ChevronUp, Users, Gavel, UserCheck, Star, Sparkles } from 'lucide-react';
 import { Verdict, JudgingMode } from '@/lib/types';
 import { getModelById } from '@/lib/models';
 import { ProviderLogo } from './ProviderLogo';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import clsx from 'clsx';
 
 interface VerdictPanelProps {
@@ -16,6 +17,7 @@ const MODE_LABELS: Record<JudgingMode, { icon: typeof Gavel; label: string }> = 
   judge: { icon: Gavel, label: 'Single Judge' },
   committee: { icon: Users, label: 'Committee Vote' },
   executive: { icon: UserCheck, label: 'Executive Panel' },
+  consensus: { icon: Sparkles, label: 'Consensus Synthesis' },
 };
 
 export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
@@ -23,12 +25,15 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
 
   if (!verdict) return null;
 
-  const { winnerModelName, reasoning, scores, isLoading, error, judgingMode, votes, voteCount } = verdict;
+  const { winnerModelName, reasoning, scores, isLoading, error, judgingMode, votes, voteCount, consensusResult } = verdict;
   const hasMultipleJudges = votes && votes.length > 1;
   const modeInfo = judgingMode ? MODE_LABELS[judgingMode] : MODE_LABELS.judge;
   const ModeIcon = modeInfo.icon;
+  const isConsensusMode = judgingMode === 'consensus';
 
-  const judgeDescription = hasMultipleJudges
+  const judgeDescription = isConsensusMode
+    ? `Synthesized by ${judgeModelName}`
+    : hasMultipleJudges
     ? `${votes.length} judges (${modeInfo.label})`
     : `Judged by ${judgeModelName}`;
 
@@ -38,9 +43,13 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
          <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4">
            <Loader2 className="w-6 h-6 animate-spin text-accent" />
          </div>
-         <h3 className="text-lg font-medium text-white mb-2">Evaluating Responses</h3>
+         <h3 className="text-lg font-medium text-white mb-2">
+           {isConsensusMode ? 'Synthesizing Responses' : 'Evaluating Responses'}
+         </h3>
          <p className="text-sm text-gray-500 max-w-sm">
-           The judge is analyzing each response against the criteria to determine the winner.
+           {isConsensusMode
+             ? 'Creating a unified response that combines the best insights from all models.'
+             : 'The judge is analyzing each response against the criteria to determine the winner.'}
          </p>
       </div>
     );
@@ -66,10 +75,16 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
       {/* Header */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-amber-500/10 bg-amber-500/5">
         <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shadow-inner shadow-amber-500/20">
-           <Award className="w-6 h-6 text-amber-400 drop-shadow-md" />
+           {isConsensusMode ? (
+             <Sparkles className="w-6 h-6 text-amber-400 drop-shadow-md" />
+           ) : (
+             <Award className="w-6 h-6 text-amber-400 drop-shadow-md" />
+           )}
         </div>
         <div>
-          <h3 className="font-bold text-amber-100 text-lg">Committee Verdict</h3>
+          <h3 className="font-bold text-amber-100 text-lg">
+            {isConsensusMode ? 'Consensus Synthesis' : 'Committee Verdict'}
+          </h3>
           <div className="flex items-center gap-1.5 text-xs text-amber-200/60 font-medium uppercase tracking-wide">
             <ModeIcon className="w-3.5 h-3.5" />
             <span>{judgeDescription}</span>
@@ -80,47 +95,118 @@ export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
       {/* Content */}
       <div className="p-6">
         <div className="space-y-6">
-            {/* Winner announcement */}
-            <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 pb-6 border-b border-white/5">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-surface-1 border border-white/10 flex items-center justify-center shadow-lg">
-                  <ProviderLogo provider={getModelById(verdict.winnerModelId)?.provider || verdict.winnerModelId} size={32} />
-                </div>
+            {/* Consensus mode: Show synthesized response */}
+            {isConsensusMode && consensusResult ? (
+              <>
+                {/* Synthesized Response */}
                 <div>
-                   <span className="text-xs text-amber-200/50 uppercase tracking-widest font-bold mb-1 block">Winner</span>
-                   <span className="font-bold text-2xl md:text-3xl text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-amber-200">
-                     {winnerModelName}
-                   </span>
+                  <h4 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    Unified Response
+                  </h4>
+                  <div className="bg-surface-2/30 p-4 rounded-xl border border-white/5 prose prose-invert prose-sm max-w-none">
+                    <MarkdownRenderer content={consensusResult.synthesizedResponse} />
+                  </div>
                 </div>
-              </div>
-              
-              {hasMultipleJudges && voteCount && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5">
-                   <div className="flex -space-x-1">
-                     {[...Array(3)].map((_, i) => (
-                       <div key={i} className="w-4 h-4 rounded-full bg-amber-500/20 ring-1 ring-background" />
-                     ))}
-                   </div>
-                   <span className="text-sm font-medium text-amber-200">
-                      {voteCount[verdict.winnerModelId] || 0} / {votes.length} votes
-                   </span>
+
+                {/* Model Contributions */}
+                {consensusResult.attributions && consensusResult.attributions.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-3">Model Contributions</h4>
+                    <div className="space-y-2">
+                      {consensusResult.attributions.map((attr, i) => (
+                        <div
+                          key={i}
+                          className="flex items-start gap-3 p-3 rounded-lg bg-surface-2/30 border border-white/5"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-surface-1 flex items-center justify-center flex-shrink-0 border border-white/5">
+                            <ProviderLogo provider={getModelById(attr.modelId)?.provider || attr.modelId} size={16} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-200 mb-0.5">
+                              {attr.modelName || attr.modelId.split('/').pop()}
+                            </div>
+                            <p className="text-xs text-gray-400">{attr.contribution}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Key Points */}
+                {consensusResult.keyPoints && consensusResult.keyPoints.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-3">Key Points</h4>
+                    <div className="space-y-2">
+                      {consensusResult.keyPoints.map((kp, i) => (
+                        <div
+                          key={i}
+                          className="p-3 rounded-lg bg-surface-2/30 border border-white/5"
+                        >
+                          <p className="text-sm text-gray-300 mb-2">{kp.point}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {kp.sourceModelIds.map((modelId, j) => (
+                              <span
+                                key={j}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-3 text-xs text-gray-400 border border-white/5"
+                              >
+                                <ProviderLogo provider={getModelById(modelId)?.provider || modelId} size={10} />
+                                {modelId.split('/').pop()}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Winner announcement (non-consensus modes) */}
+                <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 pb-6 border-b border-white/5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-surface-1 border border-white/10 flex items-center justify-center shadow-lg">
+                      <ProviderLogo provider={getModelById(verdict.winnerModelId)?.provider || verdict.winnerModelId} size={32} />
+                    </div>
+                    <div>
+                       <span className="text-xs text-amber-200/50 uppercase tracking-widest font-bold mb-1 block">Winner</span>
+                       <span className="font-bold text-2xl md:text-3xl text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-amber-200">
+                         {winnerModelName}
+                       </span>
+                    </div>
+                  </div>
+
+                  {hasMultipleJudges && voteCount && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5">
+                       <div className="flex -space-x-1">
+                         {[...Array(3)].map((_, i) => (
+                           <div key={i} className="w-4 h-4 rounded-full bg-amber-500/20 ring-1 ring-background" />
+                         ))}
+                       </div>
+                       <span className="text-sm font-medium text-amber-200">
+                          {voteCount[verdict.winnerModelId] || 0} / {votes.length} votes
+                       </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Reasoning */}
-            <div className="prose prose-invert prose-sm max-w-none">
-              <h4 className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
-                 <Star className="w-4 h-4 text-amber-400" />
-                 {hasMultipleJudges ? 'Summary' : 'Reasoning'}
-              </h4>
-              <p className="text-gray-300 leading-relaxed bg-surface-2/30 p-4 rounded-xl border border-white/5">
-                {reasoning}
-              </p>
-            </div>
+                {/* Reasoning */}
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <h4 className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                     <Star className="w-4 h-4 text-amber-400" />
+                     {hasMultipleJudges ? 'Summary' : 'Reasoning'}
+                  </h4>
+                  <p className="text-gray-300 leading-relaxed bg-surface-2/30 p-4 rounded-xl border border-white/5">
+                    {reasoning}
+                  </p>
+                </div>
+              </>
+            )}
 
-            {/* Vote breakdown for multi-judge */}
-            {hasMultipleJudges && voteCount && (
+            {/* Vote breakdown for multi-judge (non-consensus only) */}
+            {!isConsensusMode && hasMultipleJudges && voteCount && (
               <div className="rounded-xl border border-white/5 bg-surface-2/20 overflow-hidden">
                 <button
                   onClick={() => setShowVotes(!showVotes)}

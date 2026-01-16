@@ -5,7 +5,7 @@ import {
   DEFAULT_CRITERIA_ID,
   formatCriteriaForPrompt,
 } from '@/lib/criteria';
-import { JudgingMode, JudgeVote } from '@/lib/types';
+import { JudgingMode, JudgeVote, ConsensusResult, ConsensusAttribution, ConsensusKeyPoint } from '@/lib/types';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -46,6 +46,20 @@ interface MultiJudgeVerdict extends SingleJudgeVerdict {
   voteCount: Record<string, number>;
 }
 
+interface ConsensusVerdict {
+  winnerModelId: string;
+  winnerModelName: string;
+  reasoning: string;
+  scores: Array<{
+    modelId: string;
+    score: number;
+    strengths: string[];
+    weaknesses: string[];
+  }>;
+  judgingMode: 'consensus';
+  consensusResult: ConsensusResult;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -78,6 +92,70 @@ export async function POST(request: NextRequest) {
     // Resolve criteria
     const resolvedCriteria =
       criteria || getCriteriaById(criteriaId || DEFAULT_CRITERIA_ID) || getCriteriaById(DEFAULT_CRITERIA_ID)!;
+
+    // Handle consensus mode separately
+    if (judgingMode === 'consensus') {
+      if (!judgeModelId) {
+        return NextResponse.json(
+          { error: 'Judge model required for consensus mode' },
+          { status: 400 }
+        );
+      }
+
+      const consensusPrompt = buildConsensusPrompt(prompt, responses, resolvedCriteria);
+
+      try {
+        const response = await fetch(OPENROUTER_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
+            'X-Title': 'Consensus Synthesis',
+          },
+          body: JSON.stringify({
+            model: judgeModelId,
+            messages: [{ role: 'user', content: consensusPrompt }],
+            response_format: { type: 'json_object' },
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || `Judge failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+
+        if (!content) {
+          throw new Error('No response from consensus judge');
+        }
+
+        const consensusData = parseConsensusResponse(content, responses);
+
+        const result: ConsensusVerdict = {
+          winnerModelId: '',
+          winnerModelName: '',
+          reasoning: `Synthesized response combining insights from ${responses.length} models.`,
+          scores: consensusData.scores,
+          judgingMode: 'consensus',
+          consensusResult: {
+            synthesizedResponse: consensusData.synthesizedResponse,
+            attributions: consensusData.attributions,
+            keyPoints: consensusData.keyPoints,
+          },
+        };
+
+        return NextResponse.json(result);
+      } catch (error) {
+        console.error('Consensus synthesis error:', error);
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : 'Consensus synthesis failed' },
+          { status: 500 }
+        );
+      }
+    }
 
     // Determine which models will judge
     let judges: string[];
@@ -324,6 +402,145 @@ function parseJudgeResponse(
     winnerModelName: responses[0].modelName,
     reasoning: 'Unable to parse judge response. Defaulting to first response.',
     scores: responses.map((r) => ({
+      modelId: r.modelId,
+      score: 50,
+      strengths: [],
+      weaknesses: [],
+    })),
+  };
+}
+
+function buildConsensusPrompt(
+  originalPrompt: string,
+  responses: JudgeRequest['responses'],
+  criteria: JudgingCriteria
+): string {
+  const responsesText = responses
+    .map(
+      (r, i) => `
+### Response ${i + 1}: ${r.modelName} (${r.modelId})
+${r.content}
+`
+    )
+    .join('\n---\n');
+
+  const criteriaText = formatCriteriaForPrompt(criteria);
+
+  return `You are an expert synthesizer creating a unified response from multiple AI model answers. Your task is to combine the best elements from each response into a comprehensive, authoritative answer.
+
+## Original User Prompt
+${originalPrompt}
+
+## Responses to Synthesize
+${responsesText}
+
+## Evaluation Criteria: ${criteria.name}
+${criteria.description}
+
+Use these criteria to evaluate which parts of each response are strongest:
+${criteriaText}
+
+## Your Task
+Analyze each response and create a synthesized answer that combines the best insights from all models. Track which models contributed each key element.
+
+Provide your synthesis as a JSON object with this exact structure:
+{
+  "synthesizedResponse": "A comprehensive answer that combines the strongest elements from all responses. This should be a complete, well-structured response to the original prompt.",
+  "attributions": [
+    {
+      "modelId": "the model's ID",
+      "modelName": "the model's display name",
+      "contribution": "A brief description of what unique value this model added to the synthesis"
+    }
+  ],
+  "keyPoints": [
+    {
+      "point": "A key insight or element included in the synthesis",
+      "sourceModelIds": ["modelId1", "modelId2"]
+    }
+  ],
+  "scores": [
+    {
+      "modelId": "model ID",
+      "score": 85,
+      "strengths": ["what this model did well"],
+      "weaknesses": ["where this model could improve"]
+    }
+  ]
+}
+
+Guidelines:
+- The synthesizedResponse should be a complete, polished answer that reads naturally
+- Include attributions for ALL models, explaining what each uniquely contributed
+- keyPoints should highlight the main insights with credit to source models
+- Scores (0-100) reflect how much each model contributed to the final synthesis
+- Be specific about what each model added - reference actual content from their responses`;
+}
+
+interface ParsedConsensusData {
+  synthesizedResponse: string;
+  attributions: ConsensusAttribution[];
+  keyPoints: ConsensusKeyPoint[];
+  scores: Array<{
+    modelId: string;
+    score: number;
+    strengths: string[];
+    weaknesses: string[];
+  }>;
+}
+
+function parseConsensusResponse(
+  content: string,
+  responses: JudgeRequest['responses']
+): ParsedConsensusData {
+  try {
+    const parsed = JSON.parse(content);
+
+    if (parsed.synthesizedResponse) {
+      return {
+        synthesizedResponse: parsed.synthesizedResponse,
+        attributions: parsed.attributions || responses.map(r => ({
+          modelId: r.modelId,
+          modelName: r.modelName,
+          contribution: 'Contributed to the synthesis',
+        })),
+        keyPoints: parsed.keyPoints || [],
+        scores: parsed.scores || responses.map(r => ({
+          modelId: r.modelId,
+          score: 70,
+          strengths: [],
+          weaknesses: [],
+        })),
+      };
+    }
+  } catch {
+    // Try to extract JSON from markdown code blocks
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[1].trim());
+        return {
+          synthesizedResponse: parsed.synthesizedResponse || '',
+          attributions: parsed.attributions || [],
+          keyPoints: parsed.keyPoints || [],
+          scores: parsed.scores || [],
+        };
+      } catch {
+        // Fall through to default
+      }
+    }
+  }
+
+  // Default fallback - combine responses as-is
+  return {
+    synthesizedResponse: 'Unable to synthesize responses. Please see individual model responses above.',
+    attributions: responses.map(r => ({
+      modelId: r.modelId,
+      modelName: r.modelName,
+      contribution: 'Response included in synthesis attempt',
+    })),
+    keyPoints: [],
+    scores: responses.map(r => ({
       modelId: r.modelId,
       score: 50,
       strengths: [],

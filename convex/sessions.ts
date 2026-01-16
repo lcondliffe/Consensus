@@ -110,6 +110,24 @@ export const updateVerdict = mutation({
         )
       ),
       voteCount: v.optional(v.record(v.string(), v.number())),
+      consensusResult: v.optional(
+        v.object({
+          synthesizedResponse: v.string(),
+          attributions: v.array(
+            v.object({
+              modelId: v.string(),
+              modelName: v.string(),
+              contribution: v.string(),
+            })
+          ),
+          keyPoints: v.array(
+            v.object({
+              point: v.string(),
+              sourceModelIds: v.array(v.string()),
+            })
+          ),
+        })
+      ),
     }),
   },
   handler: async (ctx, args) => {

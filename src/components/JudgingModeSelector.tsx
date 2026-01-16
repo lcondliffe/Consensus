@@ -1,6 +1,6 @@
 'use client';
 
-import { Gavel, Users, UserCheck } from 'lucide-react';
+import { Gavel, Users, UserCheck, Sparkles } from 'lucide-react';
 import { JudgingMode } from '@/lib/types';
 import clsx from 'clsx';
 import { ModelPicker, ModelOption } from './ModelPicker';
@@ -33,6 +33,11 @@ const MODE_INFO: Record<JudgingMode, { icon: typeof Gavel; label: string; descri
     label: 'Executive Panel',
     description: 'Select multiple judges to vote',
   },
+  consensus: {
+    icon: Sparkles,
+    label: 'Consensus',
+    description: 'Synthesize all responses into a unified answer',
+  },
 };
 
 export function JudgingModeSelector({
@@ -52,7 +57,7 @@ export function JudgingModeSelector({
       {/* Mode Selection */}
       <div>
         <h3 className="text-sm font-medium text-gray-300 mb-3">Judging Mode</h3>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {(Object.entries(MODE_INFO) as [JudgingMode, typeof MODE_INFO[JudgingMode]][]).map(
             ([modeKey, info]) => {
               const Icon = info.icon;
@@ -144,6 +149,31 @@ export function JudgingModeSelector({
           <p className="text-xs text-gray-400">
             In committee mode, each responding model will evaluate the other responses
             and vote for the best one. Models cannot vote for their own response.
+          </p>
+        </div>
+      )}
+
+      {/* Consensus mode - uses single judge for synthesis */}
+      {mode === 'consensus' && (
+        <div>
+          <label className="block text-xs font-medium text-gray-400 mb-2">
+            Synthesis Model
+          </label>
+          <ModelPicker
+            models={models}
+            selectedIds={[judgeModelId]}
+            onSelectionChange={(ids) => ids.length > 0 && onJudgeChange(ids[0])}
+            multiSelect={false}
+            disabled={disabled}
+            searchPlaceholder="Search synthesis model..."
+            renderExtraInfo={(model) =>
+              committeeModelIds.includes(model.id) ? (
+                <span className="text-xs text-blue-400/80 flex-shrink-0">In Committee (will be removed)</span>
+              ) : null
+            }
+          />
+          <p className="text-xs text-gray-500 mt-2">
+            This model will synthesize all committee responses into a unified answer with attribution.
           </p>
         </div>
       )}
