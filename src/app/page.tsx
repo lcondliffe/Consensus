@@ -724,18 +724,31 @@ export default function Home() {
               
               {/* Empty State */}
               {!hasResponses && (
-                <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in duration-700 slide-in-from-bottom-4 py-8">
-                  <div className="w-14 h-14 rounded-2xl bg-surface-2 flex items-center justify-center mb-4 shadow-glow">
-                    <LayoutGrid className="w-7 h-7 text-accent" />
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[40vh] animate-in fade-in duration-700 slide-in-from-bottom-4 pt-0 pb-4 mb-8">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-xl bg-surface-2 flex items-center justify-center shadow-glow">
+                      <LayoutGrid className="w-4 h-4 text-accent" />
+                    </div>
+                    <h2 className="text-lg font-bold text-white tracking-tight">Consensus Committee</h2>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Consensus Committee</h2>
-                  <p className="text-foreground-muted max-w-md text-center mb-8 leading-relaxed text-sm">
-                    Submit a prompt to gather responses from your selected models, 
-                    then let the judge evaluate the results.
-                  </p>
-                  
+
+                  {/* Judging Mode & Criteria Indicator */}
+                  <div className="flex items-center gap-3 text-xs text-foreground-muted mb-4">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-foreground-muted/60">Mode:</span>
+                      <span className="text-foreground">
+                        {judgingMode === 'judge' ? 'Single Judge' : judgingMode === 'committee' ? 'Committee Vote' : 'Executive'}
+                      </span>
+                    </span>
+                    <span className="text-foreground-muted/30">•</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-foreground-muted/60">Criteria:</span>
+                      <span className="text-foreground">{judgingCriteria.name}</span>
+                    </span>
+                  </div>
+
                   {/* Committee Display */}
-                  <div className="w-full mb-8">
+                  <div className="w-full mb-4">
                     <CommitteeDisplay
                       models={models}
                       selectedCommittee={selectedCommittee}
@@ -744,13 +757,13 @@ export default function Home() {
                       executiveJudgeIds={executiveJudgeIds}
                     />
                   </div>
-                  
-                  {!showSettings && (
+
+                  {!showSettings && judgingMode === 'executive' && executiveJudgeIds.length === 0 && (
                     <button
                       onClick={() => setShowSettings(true)}
                       className="text-xs font-medium text-accent hover:text-accent-glow transition-colors uppercase tracking-wider"
                     >
-                      Configure models
+                      Configure executive panel
                     </button>
                   )}
                 </div>

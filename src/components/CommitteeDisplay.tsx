@@ -144,7 +144,7 @@ export function CommitteeDisplay({
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-8">
+    <div className="w-full max-w-4xl mx-auto space-y-4">
       {/* Committee Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-center gap-2 text-sm">
@@ -170,10 +170,10 @@ export function CommitteeDisplay({
 
       {/* Connector */}
       {hasJudges && (
-        <div className="flex flex-col items-center gap-1">
-          <div className="w-px h-6 bg-gradient-to-b from-blue-500/30 to-yellow-500/30" />
-          <div className="w-2 h-2 rounded-full bg-yellow-500/50 animate-pulse" />
-          <div className="w-px h-6 bg-gradient-to-b from-yellow-500/30 to-transparent" />
+        <div className="flex flex-col items-center gap-0.5">
+          <div className="w-px h-3 bg-gradient-to-b from-blue-500/30 to-yellow-500/30" />
+          <div className="w-1.5 h-1.5 rounded-full bg-yellow-500/50 animate-pulse" />
+          <div className="w-px h-3 bg-gradient-to-b from-yellow-500/30 to-transparent" />
         </div>
       )}
 
