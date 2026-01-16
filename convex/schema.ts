@@ -69,4 +69,28 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index('by_user', ['userId']).index('by_user_created', ['userId', 'createdAt']),
+
+  userPreferences: defineTable({
+    userId: v.string(),
+    committeeModelIds: v.array(v.string()),
+    judgeModelId: v.string(),
+    judgingMode: v.string(),
+    executiveJudgeIds: v.optional(v.array(v.string())),
+    criteriaId: v.string(),
+    customCriteria: v.optional(
+      v.object({
+        name: v.string(),
+        description: v.string(),
+        criteria: v.array(
+          v.object({
+            name: v.string(),
+            weight: v.number(),
+            description: v.string(),
+          })
+        ),
+      })
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_user', ['userId']),
 });

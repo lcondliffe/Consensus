@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Settings, X, LayoutGrid, Rows3, RotateCcw, History } from 'lucide-react';
+import { Settings, X, LayoutGrid, Rows3, RotateCcw, History, Save, Check } from 'lucide-react';
 import { UserButton, useUser } from '@clerk/nextjs';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -35,6 +35,13 @@ export default function Home() {
   const createSession = useMutation(api.sessions.create);
   const updateResponses = useMutation(api.sessions.updateResponses);
   const updateVerdict = useMutation(api.sessions.updateVerdict);
+
+  // User preferences
+  const userPreferences = useQuery(
+    api.userPreferences.get,
+    userId ? {} : 'skip'
+  );
+  const savePreferences = useMutation(api.userPreferences.save);
 
   // Session persistence state
   const [currentSessionId, setCurrentSessionId] = useState<Id<'sessions'> | null>(null);
@@ -78,6 +85,42 @@ export default function Home() {
     fetchModels();
   }, []);
 
+  // Apply user preferences when loaded
+  useEffect(() => {
+    if (userPreferences && !hasAppliedPreferences.current) {
+      hasAppliedPreferences.current = true;
+
+      // Apply saved committee models
+      setSelectedCommittee(userPreferences.committeeModelIds);
+
+      // Apply judge settings
+      setJudgeModelId(userPreferences.judgeModelId);
+      setJudgingMode(userPreferences.judgingMode as JudgingMode);
+      if (userPreferences.executiveJudgeIds) {
+        setExecutiveJudgeIds(userPreferences.executiveJudgeIds);
+      }
+
+      // Apply criteria settings
+      if (userPreferences.customCriteria) {
+        setJudgingCriteria({
+          ...userPreferences.customCriteria,
+          id: 'custom',
+          isCustom: true,
+        });
+      } else {
+        const preset = JUDGING_PRESETS.find((p) => p.id === userPreferences.criteriaId);
+        if (preset) {
+          setJudgingCriteria(preset);
+        }
+      }
+    }
+  }, [userPreferences]);
+
+  // Reset preferences flag when user changes
+  useEffect(() => {
+    hasAppliedPreferences.current = false;
+  }, [userId]);
+
   const [judgeModelId, setJudgeModelId] = useState(DEFAULT_JUDGE_MODEL.id);
   const [judgingMode, setJudgingMode] = useState<JudgingMode>('judge');
   const [executiveJudgeIds, setExecutiveJudgeIds] = useState<string[]>([]);
@@ -96,6 +139,11 @@ export default function Home() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const responsesRef = useRef<Map<string, ModelResponse>>(new Map());
+
+  // Preferences state
+  const hasAppliedPreferences = useRef(false);
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // FR-009: When judge changes, remove from committee if selected
   const handleJudgeChange = useCallback(
@@ -123,6 +171,45 @@ export default function Home() {
     setMaximizedModelId(null);
     setCurrentSessionId(null);
   }, []);
+
+  // Save current settings as user defaults
+  const handleSaveDefaults = useCallback(async () => {
+    if (!userId) return;
+
+    setIsSavingPreferences(true);
+    setSaveSuccess(false);
+
+    try {
+      await savePreferences({
+        committeeModelIds: selectedCommittee,
+        judgeModelId,
+        judgingMode,
+        executiveJudgeIds: judgingMode === 'executive' ? executiveJudgeIds : undefined,
+        criteriaId: judgingCriteria.id,
+        customCriteria: judgingCriteria.isCustom
+          ? {
+              name: judgingCriteria.name,
+              description: judgingCriteria.description,
+              criteria: judgingCriteria.criteria,
+            }
+          : undefined,
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    } finally {
+      setIsSavingPreferences(false);
+    }
+  }, [
+    userId,
+    savePreferences,
+    selectedCommittee,
+    judgeModelId,
+    judgingMode,
+    executiveJudgeIds,
+    judgingCriteria,
+  ]);
 
   // Load a session from history
   const sessions = useQuery(
@@ -595,6 +682,36 @@ export default function Home() {
             />
           </div>
         </div>
+
+        {/* Save as Defaults Button */}
+        {userId && (
+          <div className="max-w-7xl mx-auto px-6 pb-6 flex items-center justify-end">
+            <button
+              onClick={handleSaveDefaults}
+              disabled={isSubmitting || isSavingPreferences}
+              className={clsx(
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                'border',
+                saveSuccess
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : 'bg-accent/10 hover:bg-accent/20 text-accent border-accent/30 hover:border-accent/50',
+                'disabled:opacity-50 disabled:cursor-not-allowed'
+              )}
+            >
+              {saveSuccess ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Saved
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  {isSavingPreferences ? 'Saving...' : 'Save as Defaults'}
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex overflow-hidden relative">

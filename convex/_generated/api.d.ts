@@ -9,6 +9,7 @@
  */
 
 import type * as sessions from "../sessions.js";
+import type * as userPreferences from "../userPreferences.js";
 
 import type {
   ApiFromModules,
@@ -18,6 +19,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   sessions: typeof sessions;
+  userPreferences: typeof userPreferences;
 }>;
 
 /**
