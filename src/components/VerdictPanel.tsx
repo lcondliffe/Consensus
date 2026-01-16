@@ -20,6 +20,24 @@ const MODE_LABELS: Record<JudgingMode, { icon: typeof Gavel; label: string }> = 
   consensus: { icon: Sparkles, label: 'Consensus Synthesis' },
 };
 
+/**
+ * Render a verdict panel displaying judging results or a consensus synthesis.
+ *
+ * The component renders different UIs based on `verdict` state:
+ * - If `verdict` is null, renders nothing.
+ * - While `verdict.isLoading` is true, shows a loading state (text varies for consensus mode).
+ * - If `verdict.error` is present, shows an error panel with the message.
+ * - If `judgingMode === 'consensus'` and `verdict.consensusResult` is provided, renders a synthesized response,
+ *   model contributions, and key points.
+ * - Otherwise, renders the winner announcement, reasoning (or summary when multiple judges exist),
+ *   an optional collapsible vote breakdown for multi-judge verdicts, and a scorecard when `scores` are present.
+ *
+ * @param verdict - The verdict data to display; may be `null`. When present, relevant fields include:
+ *   `winnerModelId`, `winnerModelName`, `reasoning`, `scores`, `isLoading`, `error`, `judgingMode`,
+ *   `votes`, `voteCount`, and `consensusResult` (used only for consensus mode).
+ * @param judgeModelName - Human-readable name of the judge model (used in header and consensus attribution).
+ * @returns The rendered JSX element for the panel, or `null` if `verdict` is `null`.
+ */
 export function VerdictPanel({ verdict, judgeModelName }: VerdictPanelProps) {
   const [showVotes, setShowVotes] = useState(false);
 

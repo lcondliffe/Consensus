@@ -27,6 +27,14 @@ import clsx from 'clsx';
 
 const MIN_COMMITTEE_MODELS = 2;
 
+/**
+ * Render the main Consensus application UI that manages models, sessions, streaming committee responses, and judge evaluations.
+ *
+ * Renders controls for selecting models and judging criteria, displays committee responses and verdicts, handles session persistence,
+ * streams model outputs from the committee API, and triggers judge evaluation (including consensus) with results persisted when authenticated.
+ *
+ * @returns The React element representing the Consensus home screen and its interactive UI.
+ */
 export default function Home() {
   // Auth state
   const { user } = useUser();

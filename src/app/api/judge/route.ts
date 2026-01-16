@@ -60,6 +60,17 @@ interface ConsensusVerdict {
   consensusResult: ConsensusResult;
 }
 
+/**
+ * Handles POST requests to judge or synthesize model responses according to the provided payload.
+ *
+ * Processes the incoming JSON payload to run one of three judging flows: single/executive judge, committee of judges, or consensus synthesis. Validates input, resolves evaluation criteria, queries judge model(s) via OpenRouter, parses model outputs, aggregates votes and scores (for non-consensus modes), and returns a structured verdict or an error object.
+ *
+ * @param request - The incoming Next.js request containing a JudgeRequest JSON body (prompt, responses, judging mode and model identifiers, optional criteria).
+ * @returns A NextResponse whose JSON body is either:
+ *   - a ConsensusVerdict containing synthesis results, scores, and attribution when `judgingMode` is "consensus", or
+ *   - a MultiJudgeVerdict containing the winning model, aggregated reasoning, scores, votes, and vote counts for non-consensus modes, or
+ *   - an error object with an `error` message and appropriate HTTP status for validation, internal, or upstream failures.
+ */
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -305,6 +316,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Builds the instruction prompt sent to an expert judge model to evaluate, score, and pick the best response.
+ *
+ * The returned prompt includes the original user prompt, the set of model responses (each labeled with model name and id), and the evaluation criteria; it instructs the judge to produce a specific JSON-formatted verdict containing a winner, reasoning, and per-model scores with strengths and weaknesses.
+ *
+ * @param originalPrompt - The original user prompt to be evaluated
+ * @param responses - Array of model responses to evaluate; each item should include modelId, modelName, and content
+ * @param criteria - The judging criteria (name, description, and individual criterion entries) used to weight and score responses
+ * @returns The complete textual prompt to send to a judge model, requesting a JSON verdict matching the expected schema
+ */
 function buildJudgePrompt(
   originalPrompt: string,
   responses: JudgeRequest['responses'],
@@ -363,6 +384,13 @@ Scoring penalties - apply these strictly:
 - A response that says "I can't answer this" is not a valid answer and should never win`;
 }
 
+/**
+ * Parse a judge model's textual output into a structured verdict, using sensible defaults if parsing fails.
+ *
+ * @param content - Raw textual output from the judge model; may be a JSON string or include a JSON code block.
+ * @param responses - The list of candidate responses used to resolve model names and to build fallback scores.
+ * @returns A SingleJudgeVerdict with `winnerModelId`, `winnerModelName`, `reasoning`, and `scores`. If the output cannot be parsed, the first response is selected as the winner and each model receives a default score of 50 with empty strengths and weaknesses.
+ */
 function parseJudgeResponse(
   content: string,
   responses: JudgeRequest['responses']
@@ -416,6 +444,13 @@ function parseJudgeResponse(
   };
 }
 
+/**
+ * Builds the natural-language prompt that instructs a synthesizer model to produce a unified, JSON-formatted answer by combining multiple model responses according to given evaluation criteria.
+ *
+ * @param originalPrompt - The original user prompt that the synthesized answer must address.
+ * @param responses - The list of model responses to synthesize, each containing `modelId`, `modelName`, and `content`.
+ * @param criteria - The judging criteria (name and description) used to evaluate and prioritize content from each response.
+ * @returns The complete prompt string to send to a synthesizer model; it includes the original prompt, all responses, the evaluation criteria, explicit output JSON schema, and scoring guidelines.
 function buildConsensusPrompt(
   originalPrompt: string,
   responses: JudgeRequest['responses'],
@@ -502,6 +537,19 @@ interface ParsedConsensusData {
   }>;
 }
 
+/**
+ * Extracts a synthesized consensus result from the model's textual output, falling back to sensible defaults when parsing fails.
+ *
+ * Attempts to parse `content` as JSON (or JSON inside a Markdown code block) and returns the synthesizedResponse, attributions, keyPoints, and per-model scores. If parsing fails or expected fields are missing, constructs fallback values derived from `responses`.
+ *
+ * @param content - The raw model output expected to contain a JSON object (possibly inside a Markdown code block) describing the consensus synthesis.
+ * @param responses - The array of model responses used to populate default attributions and scores when the parsed output is incomplete or unavailable.
+ * @returns An object containing:
+ *  - `synthesizedResponse`: the unified synthesized answer (or a fallback message),
+ *  - `attributions`: attribution entries for each model (from parsed output or derived from `responses`),
+ *  - `keyPoints`: extracted key points (empty array if absent),
+ *  - `scores`: per-model score objects (from parsed output or defaulted values derived from `responses`).
+ */
 function parseConsensusResponse(
   content: string,
   responses: JudgeRequest['responses']
