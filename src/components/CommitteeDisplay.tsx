@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, Gavel, UserCheck } from 'lucide-react';
+import { Users, Gavel, UserCheck, Sparkles } from 'lucide-react';
 import { ProviderLogo, getProviderColor } from './ProviderLogo';
 import { ModelOption } from './ModelPicker';
 import { JudgingMode } from '@/lib/types';
@@ -16,7 +16,7 @@ interface CommitteeDisplayProps {
 
 interface ModelTileProps {
   model: ModelOption;
-  role: 'committee' | 'judge' | 'executive';
+  role: 'committee' | 'judge' | 'executive' | 'synthesizer';
   index: number;
 }
 
@@ -47,6 +47,14 @@ function ModelTile({ model, role, index }: ModelTileProps) {
       bgColor: 'bg-purple-500/5',
       labelColor: 'text-purple-400',
       glowColor: 'shadow-purple-500/10',
+    },
+    synthesizer: {
+      label: 'Synthesizer',
+      icon: Sparkles,
+      borderColor: 'border-amber-500/30',
+      bgColor: 'bg-amber-500/5',
+      labelColor: 'text-amber-400',
+      glowColor: 'shadow-amber-500/10',
     },
   };
 
@@ -121,7 +129,7 @@ export function CommitteeDisplay({
     .filter((m): m is ModelOption => m !== undefined);
 
   // Get judge models based on mode
-  const getJudgeModels = (): { models: ModelOption[]; role: 'judge' | 'executive' }[] => {
+  const getJudgeModels = (): { models: ModelOption[]; role: 'judge' | 'executive' | 'synthesizer' }[] => {
     if (judgingMode === 'judge') {
       const judge = models.find((m) => m.id === judgeModelId);
       return judge ? [{ models: [judge], role: 'judge' }] : [];
@@ -131,6 +139,10 @@ export function CommitteeDisplay({
         .map((id) => models.find((m) => m.id === id))
         .filter((m): m is ModelOption => m !== undefined);
       return executives.length > 0 ? [{ models: executives, role: 'executive' }] : [];
+    }
+    if (judgingMode === 'consensus') {
+      const synthesizer = models.find((m) => m.id === judgeModelId);
+      return synthesizer ? [{ models: [synthesizer], role: 'synthesizer' }] : [];
     }
     // Committee mode - the committee members vote
     return [];
@@ -181,13 +193,17 @@ export function CommitteeDisplay({
       {hasJudges && judgeGroups.map((group, groupIndex) => (
         <div key={groupIndex} className="space-y-4">
           <div className="flex items-center justify-center gap-2 text-sm">
-            {group.role === 'judge' ? (
+            {group.role === 'judge' && (
               <Gavel className="w-4 h-4 text-yellow-400" />
-            ) : (
+            )}
+            {group.role === 'executive' && (
               <UserCheck className="w-4 h-4 text-purple-400" />
             )}
+            {group.role === 'synthesizer' && (
+              <Sparkles className="w-4 h-4 text-amber-400" />
+            )}
             <span className="text-gray-400 font-medium">
-              {group.role === 'judge' ? 'Judge' : 'Executive Panel'}
+              {group.role === 'judge' ? 'Judge' : group.role === 'synthesizer' ? 'Synthesizer' : 'Executive Panel'}
             </span>
             {group.models.length > 1 && (
               <span className="text-gray-600">({group.models.length})</span>
@@ -220,6 +236,14 @@ export function CommitteeDisplay({
         <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
           <Users className="w-3.5 h-3.5" />
           <span>Committee members will vote on each other&apos;s responses</span>
+        </div>
+      )}
+
+      {/* Consensus mode info */}
+      {judgingMode === 'consensus' && (
+        <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Responses will be synthesized into a unified answer with attribution</span>
         </div>
       )}
     </div>

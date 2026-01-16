@@ -31,7 +31,25 @@ export interface ModelScore {
 }
 
 // Judging modes
-export type JudgingMode = 'judge' | 'committee' | 'executive';
+export type JudgingMode = 'judge' | 'committee' | 'executive' | 'consensus';
+
+// Consensus mode types
+export interface ConsensusAttribution {
+  modelId: string;
+  modelName: string;
+  contribution: string;
+}
+
+export interface ConsensusKeyPoint {
+  point: string;
+  sourceModelIds: string[];
+}
+
+export interface ConsensusResult {
+  synthesizedResponse: string;
+  attributions: ConsensusAttribution[];
+  keyPoints: ConsensusKeyPoint[];
+}
 
 export interface JudgeVote {
   judgeModelId: string;
@@ -52,6 +70,8 @@ export interface Verdict {
   judgingMode?: JudgingMode;
   votes?: JudgeVote[];
   voteCount?: Record<string, number>; // modelId -> vote count
+  // Consensus mode fields
+  consensusResult?: ConsensusResult;
 }
 
 export interface Session {

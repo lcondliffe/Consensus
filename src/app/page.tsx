@@ -265,6 +265,7 @@ export default function Home() {
           judgingMode: session.verdict.judgingMode as JudgingMode | undefined,
           votes: session.verdict.votes,
           voteCount: session.verdict.voteCount as Record<string, number> | undefined,
+          consensusResult: session.verdict.consensusResult,
         });
       } else {
         setVerdict(null);
@@ -538,6 +539,7 @@ export default function Home() {
         judgingMode,
         votes: data.votes,
         voteCount: data.voteCount,
+        consensusResult: data.consensusResult,
       };
       setVerdict(verdictData);
 
@@ -553,6 +555,7 @@ export default function Home() {
             judgingMode,
             votes: data.votes,
             voteCount: data.voteCount,
+            consensusResult: data.consensusResult,
           },
         }).catch((err) => console.error('Failed to save verdict:', err));
       }
@@ -737,7 +740,7 @@ export default function Home() {
                     <span className="flex items-center gap-1.5">
                       <span className="text-foreground-muted/60">Mode:</span>
                       <span className="text-foreground">
-                        {judgingMode === 'judge' ? 'Single Judge' : judgingMode === 'committee' ? 'Committee Vote' : 'Executive'}
+                        {judgingMode === 'judge' ? 'Single Judge' : judgingMode === 'committee' ? 'Committee Vote' : judgingMode === 'consensus' ? 'Consensus' : 'Executive'}
                       </span>
                     </span>
                     <span className="text-foreground-muted/30">•</span>
