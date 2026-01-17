@@ -22,10 +22,19 @@ import {
   getModelDisplayName,
 } from '@/lib/models';
 import { JudgingCriteria, JUDGING_PRESETS, DEFAULT_CRITERIA_ID } from '@/lib/criteria';
+import { getAppVersion } from '@/lib/version';
 import clsx from 'clsx';
 
 const MIN_COMMITTEE_MODELS = 2;
 
+/**
+ * Render the main Consensus application UI that manages models, sessions, streaming committee responses, and judge evaluations.
+ *
+ * Renders controls for selecting models and judging criteria, displays committee responses and verdicts, handles session persistence,
+ * streams model outputs from the committee API, and triggers judge evaluation (including consensus) with results persisted when authenticated.
+ *
+ * @returns The React element representing the Consensus home screen and its interactive UI.
+ */
 export default function Home() {
   // Auth state
   const { user } = useUser();
@@ -715,6 +724,21 @@ export default function Home() {
             </button>
           </div>
         )}
+
+        {/* Version Footer */}
+        <div className="max-w-7xl mx-auto px-6 pb-6 pt-4 border-t border-border/30">
+          <div className="flex items-center justify-between text-xs text-foreground-muted">
+            <span>Consensus v{getAppVersion()}</span>
+            <a
+              href="https://github.com/lcondliffe/Consensus"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
+              GitHub
+            </a>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden relative">

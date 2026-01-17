@@ -20,6 +20,16 @@ interface ModelTileProps {
   index: number;
 }
 
+/**
+ * Renders a styled tile representing a model for a given role in the committee UI.
+ *
+ * The tile includes a role badge with an icon, a provider logo with a colored glow,
+ * the model's display name, and the provider name.
+ *
+ * @param role - One of 'committee', 'judge', 'executive', or 'synthesizer' determining the badge label, icon, and color scheme.
+ * @param index - Zero-based position used to stagger the tile's entrance animation (higher values delay the animation).
+ * @returns A JSX element containing the styled model tile with badge, logo, name, and provider label.
+ */
 function ModelTile({ model, role, index }: ModelTileProps) {
   const color = getProviderColor(model.provider);
   
@@ -116,6 +126,19 @@ function ModelTile({ model, role, index }: ModelTileProps) {
   );
 }
 
+/**
+ * Render a visual display of committee members and any configured judges or synthesizers.
+ *
+ * Renders a grid of committee ModelTiles and, depending on `judgingMode`, one or more judge groups
+ * (judge, executive panel, or synthesizer) with connectors and contextual info banners.
+ *
+ * @param models - Available model options to resolve selected IDs into ModelOption objects
+ * @param selectedCommittee - Ordered list of model IDs included in the committee
+ * @param judgingMode - Current judging mode which determines judge group behavior ('committee' | 'judge' | 'executive' | 'consensus')
+ * @param judgeModelId - Model ID used for single-judge or synthesizer modes
+ * @param executiveJudgeIds - Model IDs used when the executive panel mode is active
+ * @returns The rendered committee and judges UI element, or `null` if no committee members are selected.
+ */
 export function CommitteeDisplay({
   models,
   selectedCommittee,

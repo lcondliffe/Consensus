@@ -40,6 +40,25 @@ const MODE_INFO: Record<JudgingMode, { icon: typeof Gavel; label: string; descri
   },
 };
 
+/**
+ * Renders a UI for selecting a judging mode and configuring model selections for that mode.
+ *
+ * The component displays a grid of available judging modes and conditionally renders model
+ * pickers or informational text for the active mode (single judge, executive panel, committee,
+ * or consensus). User interactions invoke the provided callbacks; visual controls respect the
+ * `disabled` flag.
+ *
+ * @param mode - Currently selected judging mode.
+ * @param onModeChange - Called with the new mode when the user selects a different judging mode.
+ * @param judgeModelId - Selected model ID used for single-judge or synthesis (consensus) modes.
+ * @param onJudgeChange - Called with the selected model ID when the single-judge or synthesis model changes.
+ * @param executiveJudgeIds - Array of selected model IDs for the executive panel.
+ * @param onExecutiveJudgesChange - Called with the updated array of executive judge IDs when selection changes.
+ * @param committeeModelIds - Array of model IDs that are part of the committee (used to annotate/disable models in pickers).
+ * @param models - List of available model options to populate the model pickers.
+ * @param disabled - If true, all interactive controls are disabled.
+ * @returns The rendered React element for the judging mode selector.
+ */
 export function JudgingModeSelector({
   mode,
   onModeChange,
