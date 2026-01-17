@@ -451,6 +451,7 @@ function parseJudgeResponse(
  * @param responses - The list of model responses to synthesize, each containing `modelId`, `modelName`, and `content`.
  * @param criteria - The judging criteria (name and description) used to evaluate and prioritize content from each response.
  * @returns The complete prompt string to send to a synthesizer model; it includes the original prompt, all responses, the evaluation criteria, explicit output JSON schema, and scoring guidelines.
+ */
 function buildConsensusPrompt(
   originalPrompt: string,
   responses: JudgeRequest['responses'],
