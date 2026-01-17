@@ -232,12 +232,13 @@ jobs:
             NEXT_PUBLIC_CONVEX_URL=${{ vars.NEXT_PUBLIC_CONVEX_URL }}
             NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
             NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+            NEXT_PUBLIC_APP_VERSION=${{ needs.version.outputs.semVer }}
 
   # Container image vulnerability scanning
   container-scan:
     name: Container Vulnerability Scan
     runs-on: ubuntu-latest
-    needs: [build-and-push]
+    needs: [version, build-and-push]
     permissions:
       security-events: write
     env:
@@ -264,6 +265,7 @@ jobs:
             NEXT_PUBLIC_CONVEX_URL=${{ vars.NEXT_PUBLIC_CONVEX_URL }}
             NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
             NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+            NEXT_PUBLIC_APP_VERSION=${{ needs.version.outputs.semVer }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

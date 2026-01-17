@@ -22,6 +22,7 @@ import {
   getModelDisplayName,
 } from '@/lib/models';
 import { JudgingCriteria, JUDGING_PRESETS, DEFAULT_CRITERIA_ID } from '@/lib/criteria';
+import { getAppVersion } from '@/lib/version';
 import clsx from 'clsx';
 
 const MIN_COMMITTEE_MODELS = 2;
@@ -715,6 +716,21 @@ export default function Home() {
             </button>
           </div>
         )}
+
+        {/* Version Footer */}
+        <div className="max-w-7xl mx-auto px-6 pb-6 pt-4 border-t border-border/30">
+          <div className="flex items-center justify-between text-xs text-foreground-muted">
+            <span>Consensus v{getAppVersion()}</span>
+            <a
+              href="https://github.com/lcondliffe/Consensus"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
+              GitHub
+            </a>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden relative">
