@@ -1,24 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Trash2, Scale } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, Scale, Sparkles, Loader2 } from 'lucide-react';
 import {
   JudgingCriteria,
   JudgingCriterion,
   JUDGING_PRESETS,
 } from '@/lib/criteria';
+import { ModelOption } from '@/components/ModelPicker';
 import clsx from 'clsx';
 
 interface CriteriaSelectorProps {
   selectedCriteria: JudgingCriteria;
   onCriteriaChange: (criteria: JudgingCriteria) => void;
   disabled?: boolean;
+  models?: ModelOption[];
 }
 
 export function CriteriaSelector({
   selectedCriteria,
   onCriteriaChange,
   disabled = false,
+  models,
 }: CriteriaSelectorProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isCustomMode, setIsCustomMode] = useState(selectedCriteria.isCustom ?? false);
@@ -28,6 +31,10 @@ export function CriteriaSelector({
   const [customName, setCustomName] = useState(
     selectedCriteria.isCustom ? selectedCriteria.name : ''
   );
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiModelId, setAiModelId] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const handlePresetChange = (presetId: string) => {
     if (presetId === 'custom') {
@@ -85,6 +92,49 @@ export function CriteriaSelector({
   const handleCustomNameChange = (name: string) => {
     setCustomName(name);
     updateCustomCriteria(customCriteria, name);
+  };
+
+  const handleGenerateCriteria = async () => {
+    if (!aiDescription.trim() || isGenerating) return;
+    const effectiveModelId = aiModelId || models?.[0]?.id;
+    if (!effectiveModelId) return;
+    setIsGenerating(true);
+    setGenerateError(null);
+    try {
+      const res = await fetch('/api/generate-criteria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ description: aiDescription, modelId: effectiveModelId }),
+      });
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        setGenerateError(`Request failed (${res.status}). Please try again.`);
+        return;
+      }
+      if (!res.ok) {
+        const message = data.error
+          || data.errors?.[0]?.message
+          || `Request failed (${res.status})`;
+        setGenerateError(message);
+        return;
+      }
+      setCustomName(data.name);
+      setCustomCriteria(data.criteria);
+      onCriteriaChange({
+        id: 'custom',
+        name: data.name,
+        description: data.description,
+        criteria: data.criteria,
+        isCustom: true,
+      });
+    } catch {
+      setGenerateError('Network error. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -169,6 +219,73 @@ export function CriteriaSelector({
             </div>
           ) : (
             <div className="space-y-3">
+              {/* AI generation section */}
+              {models && models.length > 0 && (
+                <>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-gray-400">
+                      Generate with AI
+                    </label>
+                    <textarea
+                      value={aiDescription}
+                      onChange={(e) => setAiDescription(e.target.value)}
+                      placeholder="Describe what you care about... e.g., &quot;I want to evaluate responses for a customer support chatbot, prioritizing empathy and accuracy&quot;"
+                      disabled={disabled || isGenerating}
+                      maxLength={1000}
+                      rows={3}
+                      className={clsx(
+                        'w-full px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700',
+                        'text-sm text-gray-200 placeholder-gray-500 resize-none',
+                        'focus:outline-none focus:border-purple-500/50',
+                        (disabled || isGenerating) && 'cursor-not-allowed opacity-60'
+                      )}
+                    />
+                    <select
+                      value={aiModelId}
+                      onChange={(e) => setAiModelId(e.target.value)}
+                      disabled={disabled || isGenerating}
+                      className={clsx(
+                        'w-full px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700',
+                        'text-sm text-gray-200',
+                        'focus:outline-none focus:border-purple-500/50',
+                        (disabled || isGenerating) && 'cursor-not-allowed opacity-60'
+                      )}
+                    >
+                      {models.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleGenerateCriteria}
+                      disabled={disabled || isGenerating || !aiDescription.trim()}
+                      className={clsx(
+                        'w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium',
+                        'bg-purple-600 text-white hover:bg-purple-500 transition-colors',
+                        (disabled || isGenerating || !aiDescription.trim()) &&
+                          'opacity-50 cursor-not-allowed'
+                      )}
+                    >
+                      {isGenerating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                      {isGenerating ? 'Generating...' : 'Generate'}
+                    </button>
+                    {generateError && (
+                      <p className="text-xs text-red-400">{generateError}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <div className="flex-1 h-px bg-gray-700" />
+                    <span>or edit manually</span>
+                    <div className="flex-1 h-px bg-gray-700" />
+                  </div>
+                </>
+              )}
+
               {/* Custom name */}
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">

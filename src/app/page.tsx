@@ -691,6 +691,7 @@ export default function Home() {
               selectedCriteria={judgingCriteria}
               onCriteriaChange={setJudgingCriteria}
               disabled={isSubmitting}
+              models={models}
             />
           </div>
         </div>
