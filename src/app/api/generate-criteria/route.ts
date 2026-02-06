@@ -24,7 +24,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body: GenerateCriteriaRequest = await request.json();
+    let body: GenerateCriteriaRequest;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Malformed JSON body' },
+        { status: 400 }
+      );
+    }
     const { description, modelId } = body;
 
     if (!description || !description.trim()) {
@@ -80,20 +88,34 @@ Guidelines:
 - Keep criterion descriptions under 100 characters
 - Ensure criteria are distinct and don't overlap significantly`;
 
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
-        'X-Title': 'Consensus Criteria Generator',
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-      }),
-    });
+    const timeoutMs = 12000;
+    const controller = AbortSignal.timeout(timeoutMs);
+    let response: Response;
+    try {
+      response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
+          'X-Title': 'Consensus Criteria Generator',
+        },
+        body: JSON.stringify({
+          model: modelId,
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+        }),
+        signal: controller,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return NextResponse.json(
+          { error: 'Model request timed out' },
+          { status: 504 }
+        );
+      }
+      throw error;
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -141,6 +163,8 @@ Guidelines:
 
     // Validate structure
     if (
+      parsed === null ||
+      typeof parsed !== 'object' ||
       typeof parsed.name !== 'string' ||
       typeof parsed.description !== 'string' ||
       !Array.isArray(parsed.criteria) ||

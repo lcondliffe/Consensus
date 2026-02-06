@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Trash2, Scale, Sparkles, Loader2 } from 'lucide-react';
 import {
   JudgingCriteria,
@@ -35,6 +35,14 @@ export function CriteriaSelector({
   const [aiModelId, setAiModelId] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!models || models.length === 0) return;
+    const hasModel = models.some((model) => model.id === aiModelId);
+    if (!aiModelId || !hasModel) {
+      setAiModelId(models[0].id);
+    }
+  }, [aiModelId, models]);
 
   const handlePresetChange = (presetId: string) => {
     if (presetId === 'custom') {
