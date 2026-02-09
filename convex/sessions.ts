@@ -173,7 +173,15 @@ export const get = query({
     sessionId: v.id('sessions'),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.sessionId);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error('Unauthorized');
+    }
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Not found or unauthorized');
+    }
+    return session;
   },
 });
 
