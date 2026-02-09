@@ -491,18 +491,22 @@ export default function Home() {
 
     // Build judge model IDs based on mode
     let judgeModelIds: string[] = [];
-    let judgeModelNames: string[] = [];
+    let judgeModelNames: Record<string, string> = {};
 
     if (judgingMode === 'judge') {
       judgeModelIds = [judgeModelId];
-      judgeModelNames = [getModelDisplayName(judgeModelId)];
+      judgeModelNames = { [judgeModelId]: getModelDisplayName(judgeModelId) };
     } else if (judgingMode === 'committee') {
       // All responding models vote
       judgeModelIds = completedResponses.map((r) => r.modelId);
-      judgeModelNames = completedResponses.map((r) => r.modelName);
+      judgeModelNames = Object.fromEntries(
+        completedResponses.map((r) => [r.modelId, r.modelName])
+      );
     } else if (judgingMode === 'executive') {
       judgeModelIds = executiveJudgeIds;
-      judgeModelNames = executiveJudgeIds.map((id) => getModelDisplayName(id));
+      judgeModelNames = Object.fromEntries(
+        executiveJudgeIds.map((id) => [id, getModelDisplayName(id)])
+      );
     }
 
     // Show loading state
