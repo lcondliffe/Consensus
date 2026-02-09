@@ -160,7 +160,7 @@ export const listByUser = query({
     const limit = args.limit ?? 50;
     const sessions = await ctx.db
       .query('sessions')
-      .withIndex('by_user', (q) => q.eq('userId', identity.subject))
+      .withIndex('by_user_created', (q) => q.eq('userId', identity.subject))
       .order('desc')
       .take(limit);
     return sessions;

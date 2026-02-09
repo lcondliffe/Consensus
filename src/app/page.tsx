@@ -292,6 +292,10 @@ export default function Home() {
     if (!prompt.trim() || selectedCommittee.length < MIN_COMMITTEE_MODELS || isSubmitting) {
       return;
     }
+    if (judgingMode === 'executive' && executiveJudgeIds.length < 2) {
+      setShowSettings(true);
+      return;
+    }
 
     // Reset state
     setIsSubmitting(true);
@@ -464,7 +468,7 @@ export default function Home() {
       abortControllerRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prompt, selectedCommittee, isSubmitting, userId, createSession, judgeModelId, judgingMode, judgingCriteria, updateResponses]);
+  }, [prompt, selectedCommittee, isSubmitting, userId, createSession, judgeModelId, judgingMode, judgingCriteria, updateResponses, executiveJudgeIds]);
 
   // FR-005, FR-006: Judge evaluation
   const triggerJudgeEvaluation = useCallback(async (sessionId: Id<'sessions'> | null, currentResponses: Map<string, ModelResponse>) => {
