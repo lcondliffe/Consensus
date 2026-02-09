@@ -188,17 +188,23 @@ export async function POST(request: NextRequest) {
 
     // Query all judges in parallel
     const votePromises = judges.map(async (judgeId) => {
-      // For committee mode, exclude the judge's own response
-      const responsesToJudge = judgingMode === 'committee'
+      // For committee mode, exclude the judge's own response when possible
+      let responsesToJudge = judgingMode === 'committee'
         ? responses.filter(r => r.modelId !== judgeId)
         : responses;
+      const disallowedModelId = judgingMode === 'committee' ? judgeId : undefined;
 
       if (responsesToJudge.length < 2) {
-        // Not enough responses for this judge to evaluate
-        return null;
+        // Allow committee mode to proceed with 2 models by including all responses
+        responsesToJudge = responses;
       }
 
-      const judgePrompt = buildJudgePrompt(prompt, responsesToJudge, resolvedCriteria);
+      const judgePrompt = buildJudgePrompt(
+        prompt,
+        responsesToJudge,
+        resolvedCriteria,
+        disallowedModelId
+      );
 
       try {
         const response = await fetch(OPENROUTER_API_URL, {
@@ -227,12 +233,22 @@ export async function POST(request: NextRequest) {
         if (!content) return null;
 
         const verdict = parseJudgeResponse(content, responsesToJudge);
+        let winnerModelId = verdict.winnerModelId;
+        if (disallowedModelId && winnerModelId === disallowedModelId) {
+          const fallbackByScore = verdict.scores
+            .filter((score) => score.modelId !== disallowedModelId)
+            .sort((a, b) => b.score - a.score)[0]?.modelId;
+          winnerModelId =
+            fallbackByScore ||
+            responsesToJudge.find((r) => r.modelId !== disallowedModelId)?.modelId ||
+            winnerModelId;
+        }
         const judgeName = judgeModelNames[judgeId] || judgeId.split('/').pop() || judgeId;
 
         return {
           judgeModelId: judgeId,
           judgeModelName: judgeName,
-          winnerModelId: verdict.winnerModelId,
+          winnerModelId,
           reasoning: verdict.reasoning,
           scores: verdict.scores,
         } as JudgeVote;
@@ -329,7 +345,8 @@ export async function POST(request: NextRequest) {
 function buildJudgePrompt(
   originalPrompt: string,
   responses: JudgeRequest['responses'],
-  criteria: JudgingCriteria
+  criteria: JudgingCriteria,
+  disallowedModelId?: string
 ): string {
   const responsesText = responses
     .map(
@@ -359,6 +376,7 @@ ${criteriaText}
 
 ## Your Task
 Score each response on the criteria above, then determine the overall winner. Weight your evaluation according to the importance scores.
+${disallowedModelId ? `IMPORTANT: You must NOT select the response from modelId "${disallowedModelId}". If it seems best, choose the best among the remaining responses.` : ''}
 
 Provide your evaluation as a JSON object with this exact structure:
 {

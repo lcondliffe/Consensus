@@ -160,7 +160,7 @@ export const listByUser = query({
     const limit = args.limit ?? 50;
     const sessions = await ctx.db
       .query('sessions')
-      .withIndex('by_user', (q) => q.eq('userId', identity.subject))
+      .withIndex('by_user_created', (q) => q.eq('userId', identity.subject))
       .order('desc')
       .take(limit);
     return sessions;
@@ -173,7 +173,15 @@ export const get = query({
     sessionId: v.id('sessions'),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.sessionId);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error('Unauthorized');
+    }
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Not found or unauthorized');
+    }
+    return session;
   },
 });
 
