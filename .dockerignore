@@ -1,0 +1,42 @@
+# Dependencies (reinstalled during build)
+node_modules/
+npm-debug.log*
+
+# Build output (regenerated during build)
+.next/
+out/
+
+# Environment files (secrets must not leak into image)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Version control
+.git/
+.gitignore
+
+# CI / tooling config (not needed at runtime)
+.github/
+.husky/
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Dev / editor artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docs (not needed in image)
+*.md
+docs/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
