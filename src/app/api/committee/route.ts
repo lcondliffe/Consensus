@@ -17,12 +17,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const MAX_MODELS = 10;
+    const MAX_PROMPT_LENGTH = 10_000;
+
     const body: CommitteeRequest = await request.json();
     const { prompt, models } = body;
 
     if (!prompt || !models || models.length < 2) {
       return new Response(
         JSON.stringify({ error: 'Prompt and at least 2 models required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: `Prompt must be ${MAX_PROMPT_LENGTH.toLocaleString()} characters or fewer` }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (models.length > MAX_MODELS) {
+      return new Response(
+        JSON.stringify({ error: `Cannot query more than ${MAX_MODELS} models at once` }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
