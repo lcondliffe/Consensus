@@ -50,9 +50,12 @@ OPENROUTER_API_KEY=your_openrouter_key
 NEXT_PUBLIC_CONVEX_URL=your_convex_url
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_ISSUER_URL=https://your-clerk-domain.clerk.accounts.dev
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 ```
+
+`CLERK_ISSUER_URL` is required. The Convex auth config will fail fast if it is missing rather than falling back to a development Clerk instance.
 
 ### Running Locally
 
