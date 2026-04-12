@@ -1,8 +1,15 @@
+const clerkIssuerUrl = process.env.CLERK_ISSUER_URL;
+
+if (!clerkIssuerUrl) {
+  throw new Error(
+    "Missing CLERK_ISSUER_URL. Configure your Clerk issuer URL explicitly; refusing to fall back to a development Clerk instance.",
+  );
+}
+
 export default {
   providers: [
     {
-      // The hardcoded value is the fallback for local development
-      domain: process.env.CLERK_ISSUER_URL || "https://touching-jackal-7.clerk.accounts.dev",
+      domain: clerkIssuerUrl,
       applicationID: "convex",
     },
   ],
