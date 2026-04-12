@@ -1,5 +1,7 @@
+import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { JudgingCriterion } from '@/lib/criteria';
+import { checkRateLimit, GENERATE_CRITERIA_LIMIT } from '@/lib/rateLimit';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -16,6 +18,28 @@ interface GeneratedCriteria {
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const rateLimitResult = checkRateLimit(`${userId}:generate-criteria`, GENERATE_CRITERIA_LIMIT);
+    if (!rateLimitResult.allowed) {
+      const retryAfterSec = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please wait before submitting again.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(retryAfterSec),
+            'X-RateLimit-Limit': String(GENERATE_CRITERIA_LIMIT.maxRequests),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(Math.ceil(rateLimitResult.resetAt / 1000)),
+          },
+        }
+      );
+    }
+
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
