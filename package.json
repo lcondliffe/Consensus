@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.36.5",
+    "@clerk/nextjs": "^6.39.2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "clsx": "^2.1.0",
     "convex": "^1.31.2",
